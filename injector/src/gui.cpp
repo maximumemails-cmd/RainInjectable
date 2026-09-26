@@ -16,8 +16,6 @@
 #undef max
 #endif
 #include <algorithm>
-#include <cmath>
-#include <cstdlib>
 #include <gdiplus.h>
 
 #include <string>
@@ -68,7 +66,7 @@ using Gdiplus::LinearGradientModeVertical;
 using Gdiplus::LinearGradientModeForwardDiagonal;
 using Gdiplus::InterpolationModeHighQualityBicubic;
 
-namespace lion {
+namespace rain {
 namespace {
 
 enum : int {
@@ -77,8 +75,6 @@ enum : int {
     IDC_INJECT       = 1003,
     IDC_LOG          = 1004,
 };
-
-constexpr UINT_PTR ID_SNOW_TIMER = 0xA001;
 
 namespace Clr {
     const COLORREF BG        = RGB( 23,  31,  39);
@@ -128,18 +124,6 @@ std::vector<McProcess> gProcesses;
 ProcessScanner gScanner;
 Injector gInjector;
 
-struct Snowflake {
-    float x, y;
-    int   size;
-    float speed;
-    float swingAmount;
-    float swingSpeed;
-    int   alpha;
-    float age;
-};
-std::vector<Snowflake> gSnow;
-DWORD gLastSnowTick = 0;
-
 Color gpClr(COLORREF c, BYTE a = 255) {
     return Color(a, GetRValue(c), GetGValue(c), GetBValue(c));
 }
@@ -155,58 +139,11 @@ void addRoundRect(GraphicsPath& path, REAL x, REAL y, REAL w, REAL h, REAL r) {
     path.CloseFigure();
 }
 
-float frand() { return (float)rand() / (float)RAND_MAX; }
-
-Snowflake makeSnow(int w, int h, bool randomY) {
-    Snowflake f{};
-    f.x = frand() * (float)(w > 0 ? w : 1);
-    f.y = randomY ? frand() * (float)(h > 0 ? h : 1)
-                  : -8.0f - frand() * 18.0f;
-    f.size        = 4 + (rand() % 5);
-    f.speed       = 26.0f + frand() * 38.0f;
-    f.swingAmount = 8.0f + frand() * 16.0f;
-    f.swingSpeed  = 1.5f + frand() * 2.5f;
-    f.alpha       = 110 + (rand() % 90);
-    f.age         = frand() * 10.0f;
-    return f;
-}
-
-void initSnow(int w, int h) {
-    int count = (w * h) / 9500;
-    if (count < 60) count = 60;
-    if (count > 200) count = 200;
-    gSnow.clear();
-    gSnow.reserve(count);
-    for (int i = 0; i < count; ++i) gSnow.push_back(makeSnow(w, h, true));
-}
-
-void updateSnow(int w, int h, float delta) {
-    for (auto& f : gSnow) {
-        f.age += delta;
-        f.y += f.speed * delta;
-        f.x += (float)std::sin(f.age * f.swingSpeed) * f.swingAmount * delta;
-        if (f.y > h + 12 || f.x < -20 || f.x > w + 20)
-            f = makeSnow(w, h, false);
-    }
-}
-
-void drawSnow(Graphics& g, float alphaScale) {
-    for (const auto& f : gSnow) {
-        int a = (int)(f.alpha * alphaScale);
-        if (a < 0) a = 0; else if (a > 255) a = 255;
-        Color c((BYTE)a, 238, 242, 245);
-        SolidBrush br(c);
-        g.FillRectangle(&br, f.x, f.y, (REAL)f.size, (REAL)f.size);
-    }
-}
-
 const wchar_t* launcherNameW(LauncherKind k) {
     switch (k) {
         case LauncherKind::Vanilla:  return L"Vanilla";
         case LauncherKind::Forge:    return L"Forge";
         case LauncherKind::Fabric:   return L"Fabric";
-        case LauncherKind::Lunar:    return L"Lunar";
-        case LauncherKind::Badlion:  return L"Badlion";
         case LauncherKind::OptiFine: return L"OptiFine";
         default:                     return L"Unknown";
     }
@@ -217,8 +154,6 @@ Color launcherColor(LauncherKind k) {
         case LauncherKind::Vanilla:  return Color(255,  76, 175,  80);
         case LauncherKind::Forge:    return Color(255, 230, 128,  40);
         case LauncherKind::Fabric:   return Color(255, 158, 117,  91);
-        case LauncherKind::Lunar:    return Color(255,  56, 165, 245);
-        case LauncherKind::Badlion:  return Color(255, 220,  60,  70);
         case LauncherKind::OptiFine: return Color(255, 240, 195,  35);
         default:                     return Color(255, 130, 145, 165);
     }
@@ -381,27 +316,65 @@ void refreshList() {
 void doInject() {
     int sel = (int)SendMessage(gList, LVM_GETNEXTITEM, (WPARAM)-1, LVNI_SELECTED);
     if (sel < 0 || sel >= (int)gProcesses.size()) {
-        MessageBoxW(gMain, L"Select a Minecraft process first.", L"LionClient", MB_ICONWARNING);
+        MessageBoxW(gMain, L"Select a Minecraft process first.", L"Rain Injector", MB_ICONWARNING);
         return;
     }
     const McProcess& p = gProcesses[sel];
     LOG_I("Injecting into pid=%lu (%ls)", p.pid, p.exeName.c_str());
 
-    std::wstring payloadPath = exeDir() + L"\\payload.dll";
-    std::wstring jarPath     = exeDir() + L"\\client.jar";
+    std::wstring payloadPath = exeDir() + L"\\rain-payload.dll";
+    std::wstring jarPath     = exeDir() + L"\\rain-runtime.jar";
 
     DWORD attr = GetFileAttributesW(payloadPath.c_str());
     if (attr == INVALID_FILE_ATTRIBUTES) {
         MessageBoxW(gMain,
-            L"payload.dll is missing.\nIt must sit next to LionInjectable.exe.",
-            L"LionClient", MB_ICONERROR);
+            L"rain-payload.dll is missing.\nIt must sit next to RainInjector.exe.",
+            L"Rain Injector", MB_ICONERROR);
         return;
     }
     attr = GetFileAttributesW(jarPath.c_str());
     if (attr == INVALID_FILE_ATTRIBUTES) {
         MessageBoxW(gMain,
-            L"client.jar is missing.\nIt must sit next to LionInjectable.exe.",
-            L"LionClient", MB_ICONERROR);
+            L"rain-runtime.jar is missing.\nIt must sit next to RainInjector.exe.",
+            L"Rain Injector", MB_ICONERROR);
+        return;
+    }
+
+    if (p.launcher == LauncherKind::Unknown) {
+        // Some launchers (Prism/MultiMC-style wrappers) pass the real main class
+        // and classpath over stdin, so the command line cannot prove Forge.
+        // The Java bootstrap performs the definitive Forge check and refuses
+        // to start if Forge is absent, so let the user decide here.
+        int choice = MessageBoxW(gMain,
+            L"Could not confirm Forge 1.8.9 from this process's command line.\n\n"
+            L"Rain only works inside a Forge 1.8.9 game. If this is a Forge profile "
+            L"started by a wrapper launcher you can continue; Rain will refuse to start "
+            L"if Forge is not present.\n\nInject anyway?",
+            L"Rain Injector", MB_ICONQUESTION | MB_YESNO | MB_DEFBUTTON2);
+        if (choice != IDYES) {
+            LOG_I("Injection cancelled: launcher could not be classified as Forge.");
+            return;
+        }
+        LOG_W("Launcher unclassified; proceeding on user confirmation (Java-side Forge check still applies).");
+    } else if (p.launcher != LauncherKind::Forge) {
+        std::wstring msg = L"Rain requires a Forge 1.8.9 process.\n\nThe selected process was classified as: ";
+        msg += launcherNameW(p.launcher);
+        msg += L".\nStart Minecraft with a Forge 1.8.9 profile (Feather counts as Forge) and refresh.";
+        MessageBoxW(gMain, msg.c_str(), L"Rain Injector", MB_ICONWARNING);
+        LOG_W("Rain requires a Forge 1.8.9 process. The selected process was classified as: %ls.",
+              launcherNameW(p.launcher));
+        return;
+    }
+    if (!p.x64) {
+        MessageBoxW(gMain, L"Rain Injector only supports 64-bit Java processes.",
+            L"Rain Injector", MB_ICONERROR);
+        return;
+    }
+    if (isModuleLoaded(p.pid, L"rain-payload.dll")) {
+        MessageBoxW(gMain,
+            L"Rain is already loaded in this process.\nRe-injecting is a no-op; restart Minecraft to load a new build.",
+            L"Rain Injector", MB_ICONINFORMATION);
+        LOG_I("Rain is already loaded in this process. Re-injecting is a no-op; restart Minecraft to load a new build.");
         return;
     }
 
@@ -414,8 +387,8 @@ void doInject() {
         MessageBoxW(gMain, wmsg.c_str(), L"Injection failed", MB_ICONERROR);
     } else {
         MessageBoxW(gMain,
-            L"Injection complete.\n\nPress RIGHT SHIFT in Minecraft to open the ClickGUI.",
-            L"LionClient", MB_ICONINFORMATION);
+            L"Injection complete.\n\nRain is now running inside Minecraft. Press RIGHT SHIFT in-game to open the Rain GUI.\n\nIf nothing happens, check rain-payload.log and rain-bootstrap.log next to RainInjector.exe.",
+            L"Rain Injector", MB_ICONINFORMATION);
     }
 }
 
@@ -737,28 +710,11 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             SetWindowTheme(gLog, L"", L"");
 
             Logger::get().attachUiSink(gLog);
-            LOG_I("LionClient ready.");
-
-            srand(GetTickCount());
-            gLastSnowTick = GetTickCount();
-            SetTimer(hwnd, ID_SNOW_TIMER, 33, nullptr);
+            LOG_I("Rain Injector ready. Select a Forge 1.8.9 process and click INJECT.");
 
             refreshList();
             return 0;
         }
-
-        case WM_TIMER:
-            if (wp == ID_SNOW_TIMER) {
-                DWORD now = GetTickCount();
-                float delta = (now - gLastSnowTick) / 1000.0f;
-                if (delta > 0.05f) delta = 0.05f;
-                gLastSnowTick = now;
-                RECT rc; GetClientRect(hwnd, &rc);
-                if (gSnow.empty()) initSnow(rc.right, rc.bottom);
-                else               updateSnow(rc.right, rc.bottom, delta);
-                InvalidateRect(hwnd, nullptr, FALSE);
-            }
-            return 0;
 
         case WM_ERASEBKGND:
             return 1;
@@ -781,12 +737,6 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 
             drawSidebar(mem, H);
             drawContent(mem, W, H);
-
-            {
-                Graphics g(mem);
-                g.SetSmoothingMode(SmoothingModeAntiAlias);
-                drawSnow(g, 0.85f);
-            }
 
             auto outline = [&](HWND child, COLORREF clr) {
                 if (!child) return;
@@ -816,8 +766,6 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
 
         case WM_SIZE: {
             layoutChildren(hwnd);
-            RECT rc; GetClientRect(hwnd, &rc);
-            if (!gSnow.empty()) initSnow(rc.right, rc.bottom);
             InvalidateRect(hwnd, nullptr, FALSE);
             return 0;
         }
@@ -864,7 +812,6 @@ LRESULT CALLBACK wndProc(HWND hwnd, UINT msg, WPARAM wp, LPARAM lp) {
             return 0;
         }
         case WM_DESTROY:
-            KillTimer(hwnd, ID_SNOW_TIMER);
             if (gRowSizer) ImageList_Destroy(gRowSizer);
             if (gBrBg)     DeleteObject(gBrBg);
             if (gBrLog)    DeleteObject(gBrLog);
@@ -890,18 +837,18 @@ int runGui(HINSTANCE hInst, int nCmdShow) {
     wc.hInstance      = hInst;
     wc.hCursor        = LoadCursor(nullptr, IDC_ARROW);
     wc.hbrBackground  = nullptr;
-    wc.lpszClassName  = L"LionClientMain";
+    wc.lpszClassName  = L"RainInjectorMain";
     if (!RegisterClassW(&wc)) {
-        MessageBoxW(nullptr, L"RegisterClass failed.", L"LionClient", MB_ICONERROR);
+        MessageBoxW(nullptr, L"RegisterClass failed.", L"Rain Injector", MB_ICONERROR);
         return 1;
     }
 
-    gMain = CreateWindowExW(0, wc.lpszClassName, L"LionClient",
+    gMain = CreateWindowExW(0, wc.lpszClassName, L"Rain Injector",
         WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN,
         CW_USEDEFAULT, CW_USEDEFAULT, 1180, 720,
         nullptr, nullptr, hInst, nullptr);
     if (!gMain) {
-        MessageBoxW(nullptr, L"CreateWindow failed.", L"LionClient", MB_ICONERROR);
+        MessageBoxW(nullptr, L"CreateWindow failed.", L"Rain Injector", MB_ICONERROR);
         return 1;
     }
     ShowWindow(gMain, nCmdShow);
@@ -918,4 +865,4 @@ int runGui(HINSTANCE hInst, int nCmdShow) {
     return (int)msg.wParam;
 }
 
-} // namespace lion
+} // namespace rain

@@ -2,12 +2,10 @@
 #include "logger.h"
 
 #include <psapi.h>
-#include <fstream>
-#include <vector>
 
 #pragma comment(lib, "psapi.lib")
 
-namespace lion {
+namespace rain {
 
 static bool sameArchAsTarget(HANDLE hProc, std::string& err) {
     BOOL targetWow = FALSE, selfWow = FALSE;
@@ -174,59 +172,22 @@ bool Injector::isPayloadLoaded(DWORD pid, const std::wstring& dllPath) {
     return found;
 }
 
-bool writeConfigJson(const std::wstring& path,
-                     const std::wstring& jarPath,
-                     const std::wstring& logDir) {
-    // Escape backslashes / quotes / non-ASCII for JSON-safe paths.
-    auto esc = [](const std::wstring& w) {
-        std::string s; s.reserve(w.size() * 2);
-        for (wchar_t c : w) {
-            if      (c == L'\\') s += "\\\\";
-            else if (c == L'"')  s += "\\\"";
-            else if (c < 128)    s += (char)c;
-            else { char b[8]; sprintf_s(b, "\\u%04X", (unsigned)c); s += b; }
+bool isModuleLoaded(DWORD pid, const std::wstring& moduleBaseName) {
+    HANDLE h = OpenProcess(PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, pid);
+    if (!h) return false;
+    HMODULE mods[1024]; DWORD needed = 0;
+    bool found = false;
+    if (EnumProcessModulesEx(h, mods, sizeof(mods), &needed, LIST_MODULES_ALL)) {
+        DWORD count = needed / sizeof(HMODULE);
+        for (DWORD i = 0; i < count; ++i) {
+            wchar_t name[MAX_PATH] = {};
+            if (GetModuleBaseNameW(h, mods[i], name, MAX_PATH)) {
+                if (_wcsicmp(name, moduleBaseName.c_str()) == 0) { found = true; break; }
+            }
         }
-        return s;
-    };
-
-    // The injector only persists the runtime paths now — all module/keybind
-    // state lives in the client's own settings.json (managed by SettingsStore).
-    std::string j;
-    j += "{\n";
-    j += "  \"version\": 2,\n";
-    j += "  \"jarPath\": \"" + esc(jarPath) + "\",\n";
-    j += "  \"logDir\":  \"" + esc(logDir)  + "\"\n";
-    j += "}\n";
-
-    HANDLE f = CreateFileW(path.c_str(), GENERIC_WRITE, 0, nullptr,
-                           CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (f == INVALID_HANDLE_VALUE) {
-        LOG_E("writeConfigJson: CreateFile failed: %s", lastErrorString().c_str());
-        return false;
     }
-    DWORD w = 0;
-    BOOL ok = WriteFile(f, j.data(), (DWORD)j.size(), &w, nullptr);
-    CloseHandle(f);
-    if (!ok || w != j.size()) {
-        LOG_E("writeConfigJson: WriteFile failed: %s", lastErrorString().c_str());
-        return false;
-    }
-    LOG_I("Wrote config: %ls", path.c_str());
-    return true;
+    CloseHandle(h);
+    return found;
 }
 
-bool copyAssetTo(const std::wstring& src, const std::wstring& dst) {
-    if (GetFileAttributesW(src.c_str()) == INVALID_FILE_ATTRIBUTES) {
-        LOG_E("copyAssetTo: source missing: %ls", src.c_str());
-        return false;
-    }
-    if (!CopyFileW(src.c_str(), dst.c_str(), FALSE)) {
-        LOG_E("copyAssetTo: %ls -> %ls failed: %s",
-              src.c_str(), dst.c_str(), lastErrorString().c_str());
-        return false;
-    }
-    LOG_T("Copied %ls -> %ls", src.c_str(), dst.c_str());
-    return true;
-}
-
-} // namespace lion
+} // namespace rain

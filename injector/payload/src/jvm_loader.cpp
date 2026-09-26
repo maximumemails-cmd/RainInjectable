@@ -4,7 +4,7 @@
 #include <cstdio>
 #include <string>
 
-namespace lion::payload {
+namespace rain::payload {
 
 namespace {
 
@@ -74,6 +74,21 @@ std::wstring payloadDir() {
     return (pos == std::wstring::npos) ? L"." : p.substr(0, pos);
 }
 
+void payloadOpenLog(const std::wstring& path) {
+    ensureLogInit();
+    EnterCriticalSection(&gLogLock);
+    if (gLogFile != INVALID_HANDLE_VALUE) {
+        CloseHandle(gLogFile);
+        gLogFile = INVALID_HANDLE_VALUE;
+    }
+    gLogFile = CreateFileW(path.c_str(), GENERIC_WRITE, FILE_SHARE_READ,
+                           nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (gLogFile != INVALID_HANDLE_VALUE) {
+        SetFilePointer(gLogFile, 0, nullptr, FILE_END);
+    }
+    LeaveCriticalSection(&gLogLock);
+}
+
 void payloadLog(const char* fmt, ...) {
     ensureLogInit();
     char buf[2048];
@@ -105,11 +120,11 @@ extern "C" void payload_setSelfModule(HMODULE m) {
     ensureLogInit();
 }
 
-// Bootstrap path: attach to the host JVM, build a URLClassLoader for the
-// client jar, and call lion.client.Agent.start(jarPath, dllPath). Everything
-// else (LaunchClassLoader hookery, modules, ESP renderer) is handled on the
-// Java side — we do NOT touch instrument.dll, because Agent_OnAttach reliably
-// segfaults the JVM in PrismLauncher's jre-legacy (Java 8u51).
+// Bootstrap path: wait for jvm.dll, resolve JNI_GetCreatedJavaVMs, attach to
+// the host JVM, build a URLClassLoader for the rain-runtime.jar, and call
+// first.rain.anticheat.bootstrap.RainBootstrap.start(jarPath, dllPath).
+// Everything else (Forge hookery, modules, rendering) is handled on the
+// Java side.
 bool bootstrap(const std::wstring& jarPath,
                const std::wstring& dllPath,
                std::string& error) {
@@ -118,7 +133,7 @@ bool bootstrap(const std::wstring& jarPath,
     payloadLog("  DLL: %s", wideToUtf8(dllPath).c_str());
 
     if (GetFileAttributesW(jarPath.c_str()) == INVALID_FILE_ATTRIBUTES) {
-        error = "client.jar not found at expected path";
+        error = "rain-runtime.jar not found at expected path";
         payloadLog("ERROR: %s", error.c_str());
         return false;
     }
@@ -141,7 +156,8 @@ bool bootstrap(const std::wstring& jarPath,
     JavaVM* vm = vms[0];
 
     JNIEnv* env = nullptr;
-    jint ar = vm->AttachCurrentThread((void**)&env, nullptr);
+    JavaVMAttachArgs args{ JNI_VERSION_1_6, (char*)"Rain-Bootstrap", nullptr };
+    jint ar = vm->AttachCurrentThread((void**)&env, &args);
     if (ar != JNI_OK || !env) {
         error = "AttachCurrentThread failed: rc=" + std::to_string(ar);
         payloadLog("ERROR: %s", error.c_str());
@@ -179,21 +195,21 @@ bool bootstrap(const std::wstring& jarPath,
     payloadLog("URLClassLoader created.");
 
     jmethodID loadClass = env->GetMethodID(loaderClass, "loadClass", "(Ljava/lang/String;)Ljava/lang/Class;");
-    jstring agentName = env->NewStringUTF("lion.client.Agent");
+    jstring agentName = env->NewStringUTF("first.rain.anticheat.bootstrap.RainBootstrap");
     auto agentClass = (jclass)env->CallObjectMethod(loader, loadClass, agentName);
     if (!agentClass || env->ExceptionCheck()) {
-        describeAndClearException(env, "loadClass Agent");
-        error = "Could not load lion.client.Agent from the JAR";
+        describeAndClearException(env, "loadClass RainBootstrap");
+        error = "Could not load first.rain.anticheat.bootstrap.RainBootstrap from the JAR";
         vm->DetachCurrentThread();
         return false;
     }
-    payloadLog("Loaded lion.client.Agent.");
+    payloadLog("Loaded first.rain.anticheat.bootstrap.RainBootstrap.");
 
     jmethodID start = env->GetStaticMethodID(
         agentClass, "start", "(Ljava/lang/String;Ljava/lang/String;)V");
     if (!start) {
-        describeAndClearException(env, "GetStaticMethodID Agent.start");
-        error = "Agent.start(String,String) not found in JAR";
+        describeAndClearException(env, "GetStaticMethodID RainBootstrap.start");
+        error = "RainBootstrap.start(String,String) not found in JAR";
         vm->DetachCurrentThread();
         return false;
     }
@@ -201,16 +217,16 @@ bool bootstrap(const std::wstring& jarPath,
     jstring jDll = env->NewStringUTF(wideToUtf8(dllPath).c_str());
     env->CallStaticVoidMethod(agentClass, start, jJar, jDll);
     if (env->ExceptionCheck()) {
-        describeAndClearException(env, "Agent.start");
-        error = "lion.client.Agent.start threw — see client.log";
+        describeAndClearException(env, "RainBootstrap.start");
+        error = "first.rain.anticheat.bootstrap.RainBootstrap.start threw — see rain-bootstrap.log";
         vm->DetachCurrentThread();
         return false;
     }
-    payloadLog("Agent.start returned cleanly.");
+    payloadLog("RainBootstrap.start returned cleanly.");
 
     vm->DetachCurrentThread();
     payloadLog("Bootstrap complete.");
     return true;
 }
 
-} // namespace lion::payload
+} // namespace rain::payload

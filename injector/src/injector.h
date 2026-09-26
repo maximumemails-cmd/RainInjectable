@@ -3,7 +3,7 @@
 #include <string>
 #include <windows.h>
 
-namespace lion {
+namespace rain {
 
 struct InjectionResult {
     bool ok = false;
@@ -21,10 +21,8 @@ public:
     bool isPayloadLoaded(DWORD pid, const std::wstring& dllPath);
 };
 
-bool writeConfigJson(const std::wstring& path,
-                     const std::wstring& jarPath,
-                     const std::wstring& logDir);
+// Checks whether a module with the given base name (e.g. "rain-payload.dll")
+// is loaded in the target process. Case-insensitive; returns false on any failure.
+bool isModuleLoaded(DWORD pid, const std::wstring& moduleBaseName);
 
-bool copyAssetTo(const std::wstring& src, const std::wstring& dst);
-
-} // namespace lion
+} // namespace rain

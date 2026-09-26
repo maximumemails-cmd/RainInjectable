@@ -38,7 +38,7 @@ public final class RainBootstrap {
                return;
             }
 
-            Class<?> launch = Class.forName("net.minecraft.launchwrapper.Launch", false, ClassLoader.getSystemClassLoader());
+            Class<?> launch = findLaunchClass();
             Object lcl = launch.getField("classLoader").get(null);
             if (lcl == null) {
                throw new IllegalStateException("Launch.classLoader is null - not a LaunchWrapper (Forge) process");
@@ -70,6 +70,37 @@ public final class RainBootstrap {
          log(sw.toString());
          throw new RuntimeException(t);
       }
+   }
+
+   /**
+    * Locates net.minecraft.launchwrapper.Launch. Normally it is on the system
+    * classpath; wrapper launchers (Prism/MultiMC-style) load the game libraries
+    * in a child classloader instead, so fall back to scanning every live
+    * thread's context classloader.
+    */
+   private static Class<?> findLaunchClass() throws ClassNotFoundException {
+      final String name = "net.minecraft.launchwrapper.Launch";
+      try {
+         return Class.forName(name, false, ClassLoader.getSystemClassLoader());
+      } catch (ClassNotFoundException ignored) {
+         log("Launch not on system classpath; scanning thread context classloaders");
+      }
+      Thread[] threads = new Thread[Thread.activeCount() * 2 + 16];
+      int count = Thread.enumerate(threads);
+      java.util.Set<ClassLoader> seen = new java.util.HashSet<ClassLoader>();
+      for (int i = 0; i < count; i++) {
+         ClassLoader cl = threads[i] == null ? null : threads[i].getContextClassLoader();
+         if (cl == null || !seen.add(cl)) {
+            continue;
+         }
+         try {
+            Class<?> c = Class.forName(name, false, cl);
+            log("found Launch via context classloader of thread '" + threads[i].getName() + "' (" + cl.getClass().getName() + ")");
+            return c;
+         } catch (ClassNotFoundException ignored) {
+         }
+      }
+      throw new ClassNotFoundException(name + " - not a LaunchWrapper (Forge) process");
    }
 
    /** Harmless helper for static verification. */

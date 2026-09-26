@@ -10,7 +10,7 @@
 #pragma comment(lib, "psapi.lib")
 #pragma comment(lib, "ntdll.lib")
 
-namespace lion {
+namespace rain {
 
 namespace {
 
@@ -24,8 +24,7 @@ bool icontains(const std::wstring& hay, const std::wstring& needle) {
 }
 
 bool isJvmHostProcess(const std::wstring& exe) {
-    return icontains(exe, L"javaw.exe") || icontains(exe, L"java.exe") ||
-           icontains(exe, L"lunarclient.exe") || icontains(exe, L"minecraft.exe");
+    return icontains(exe, L"javaw.exe") || icontains(exe, L"java.exe");
 }
 
 struct EnumWindowCtx {
@@ -74,30 +73,11 @@ std::wstring ProcessScanner::readCommandLine(HANDLE hProc) {
 }
 
 LauncherKind ProcessScanner::classify(const McProcess& p, const std::wstring& cmdLine) {
-    // Badlion checks come FIRST. The old order put Lunar first with a loose
-    // `genesisclient` substring check that could match Badlion classpaths
-    // bundling launchwrapper / Genesis-style class names. Several Badlion
-    // builds also don't put "badlion" in the exe path (they launch via
-    // javaw.exe from PrismLauncher / vanilla launcher), so we widen the
-    // pattern set: window title, exe path, AND classpath markers.
-    if (icontains(p.windowTitle, L"Badlion") ||
-        icontains(p.exePath,     L"badlion")   ||
-        icontains(p.exePath,     L"BLClient")  ||
-        icontains(cmdLine,       L"badlion")   ||
-        icontains(cmdLine,       L"BLClient")  ||
-        icontains(cmdLine,       L"net.badlion")) {
-        return LauncherKind::Badlion;
-    }
-    // Lunar: be specific. `com.moonsworth` is Lunar's company namespace and
-    // can't appear in non-Lunar builds; `lunarclient` is the launcher exe.
-    if (icontains(p.windowTitle, L"Lunar")          ||
-        icontains(p.exePath,     L"lunarclient")    ||
-        icontains(cmdLine,       L"lunarclient")    ||
-        icontains(cmdLine,       L"com.moonsworth") ||
-        icontains(cmdLine,       L"genesisclient")) {
-        return LauncherKind::Lunar;
-    }
-    if (icontains(cmdLine, L"net.minecraftforge") || icontains(cmdLine, L"forge"))
+    // Forge: launchwrapper main class plus a Forge marker on the classpath.
+    if (icontains(cmdLine, L"net.minecraft.launchwrapper.Launch") &&
+        (icontains(cmdLine, L"fmltweaker") ||
+         icontains(cmdLine, L"minecraftforge") ||
+         icontains(cmdLine, L"forge")))
         return LauncherKind::Forge;
     if (icontains(cmdLine, L"net.fabricmc") || icontains(cmdLine, L"fabric-loader"))
         return LauncherKind::Fabric;
@@ -162,8 +142,6 @@ bool ProcessScanner::inspectProcess(DWORD pid, McProcess& out) {
         (out.hasLwjgl ||
          out.launcher != LauncherKind::Unknown ||
          icontains(out.windowTitle, L"Minecraft") ||
-         icontains(out.windowTitle, L"Lunar") ||
-         icontains(out.windowTitle, L"Badlion") ||
          icontains(cmd, L"minecraft"));
     return looksLikeMc;
 }
@@ -194,11 +172,9 @@ const char* ProcessScanner::launcherName(LauncherKind k) const {
         case LauncherKind::Vanilla:  return "Vanilla";
         case LauncherKind::Forge:    return "Forge";
         case LauncherKind::Fabric:   return "Fabric";
-        case LauncherKind::Lunar:    return "Lunar";
-        case LauncherKind::Badlion:  return "Badlion";
         case LauncherKind::OptiFine: return "OptiFine";
         default:                     return "Unknown";
     }
 }
 
-} // namespace lion
+} // namespace rain

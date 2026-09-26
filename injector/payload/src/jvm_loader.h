@@ -4,15 +4,13 @@
 #include <string>
 #include <windows.h>
 
-namespace lion::payload {
+namespace rain::payload {
 
-// Single-phase bootstrap. payload.dll's DllMain worker thread calls this,
-// passing the absolute paths to the client jar and the payload DLL itself.
-// Internally we find jvm.dll, locate the JVM's bundled instrument.dll, and
-// call Agent_OnAttach with "<jar>=<dll>" — the JVM then loads our jar as a
-// Java agent and invokes lion.client.LionAgent.agentmain. From there
-// everything else (LaunchClassLoader registration, AgentRuntime, modules,
-// ESP rendering) is on the Java side.
+// Single-phase bootstrap. rain-payload.dll's DllMain worker thread calls this,
+// passing the absolute paths to the rain-runtime.jar and the payload DLL itself.
+// Flow: wait for jvm.dll -> JNI_GetCreatedJavaVMs -> AttachCurrentThread ->
+// URLClassLoader(jar) -> RainBootstrap.start(jar, dll). Everything else
+// (Forge hookery, modules, rendering) is on the Java side.
 bool bootstrap(const std::wstring& jarPath,
                const std::wstring& dllPath,
                std::string& error);
@@ -20,7 +18,11 @@ bool bootstrap(const std::wstring& jarPath,
 // Where the payload DLL was loaded from (used for sibling log files).
 std::wstring payloadDir();
 
-// Append-only line into payload.log next to the DLL.
+// Opens (creating if needed) the append-only payload log file at `path`.
+// Must be called before payloadLog() will write to disk.
+void payloadOpenLog(const std::wstring& path);
+
+// Append-only line into the payload log next to the DLL.
 void payloadLog(const char* fmt, ...);
 
-} // namespace lion::payload
+} // namespace rain::payload

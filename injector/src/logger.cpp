@@ -6,7 +6,7 @@
 #include <shlobj.h>
 #include <vector>
 
-namespace lion {
+namespace rain {
 
 Logger& Logger::get() {
     static Logger inst;
@@ -127,4 +127,4 @@ std::wstring expandTempDir(const std::wstring& sub) {
     return p;
 }
 
-} // namespace lion
+} // namespace rain

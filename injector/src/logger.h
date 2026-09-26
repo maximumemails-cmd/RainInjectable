@@ -3,7 +3,7 @@
 #include <string>
 #include <windows.h>
 
-namespace lion {
+namespace rain {
 
 enum class LogLevel { TRACE, INFO, WARN, ERR, CRIT };
 
@@ -31,14 +31,14 @@ private:
     bool initialised_ = false;
 };
 
-#define LOG_T(...) ::lion::Logger::get().logf(::lion::LogLevel::TRACE, __VA_ARGS__)
-#define LOG_I(...) ::lion::Logger::get().logf(::lion::LogLevel::INFO,  __VA_ARGS__)
-#define LOG_W(...) ::lion::Logger::get().logf(::lion::LogLevel::WARN,  __VA_ARGS__)
-#define LOG_E(...) ::lion::Logger::get().logf(::lion::LogLevel::ERR,   __VA_ARGS__)
-#define LOG_C(...) ::lion::Logger::get().logf(::lion::LogLevel::CRIT,  __VA_ARGS__)
+#define LOG_T(...) ::rain::Logger::get().logf(::rain::LogLevel::TRACE, __VA_ARGS__)
+#define LOG_I(...) ::rain::Logger::get().logf(::rain::LogLevel::INFO,  __VA_ARGS__)
+#define LOG_W(...) ::rain::Logger::get().logf(::rain::LogLevel::WARN,  __VA_ARGS__)
+#define LOG_E(...) ::rain::Logger::get().logf(::rain::LogLevel::ERR,   __VA_ARGS__)
+#define LOG_C(...) ::rain::Logger::get().logf(::rain::LogLevel::CRIT,  __VA_ARGS__)
 
 std::string lastErrorString(DWORD err = GetLastError());
 std::wstring expandTempDir(const std::wstring& sub);
 std::string  wideToUtf8(const std::wstring& w);
 
-} // namespace lion
+} // namespace rain

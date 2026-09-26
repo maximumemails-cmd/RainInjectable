@@ -4,15 +4,13 @@
 #include <vector>
 #include <windows.h>
 
-namespace lion {
+namespace rain {
 
 enum class LauncherKind {
     Unknown,
     Vanilla,
     Forge,
     Fabric,
-    Lunar,
-    Badlion,
     OptiFine,
 };
 
@@ -38,4 +36,4 @@ private:
     std::wstring readCommandLine(HANDLE hProc);
 };
 
-} // namespace lion
+} // namespace rain

@@ -1,4 +1,4 @@
-// LionInjectable — Win32 entry point.
+// RainInjector — Win32 entry point.
 
 #ifndef WIN32_LEAN_AND_MEAN
 #  define WIN32_LEAN_AND_MEAN
@@ -14,5 +14,5 @@
 
 int APIENTRY wWinMain(HINSTANCE hInst, HINSTANCE, LPWSTR, int nCmdShow) {
     SetProcessDPIAware();
-    return lion::runGui(hInst, nCmdShow);
+    return rain::runGui(hInst, nCmdShow);
 }

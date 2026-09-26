@@ -21,13 +21,20 @@ std::wstring selfDir() {
 }
 
 DWORD WINAPI worker(LPVOID) {
-    using namespace lion::payload;
+    using namespace rain::payload;
     const std::wstring dir = selfDir();
-    const std::wstring jar = dir + L"\\client.jar";
-    const std::wstring dll = dir + L"\\payload.dll";
+    const std::wstring jar = dir + L"\\rain-runtime.jar";
+    const std::wstring dll = dir + L"\\rain-payload.dll";
+
+    payloadOpenLog(dir + L"\\rain-payload.log");
 
     std::string err;
-    bootstrap(jar, dll, err);
+    bool ok = bootstrap(jar, dll, err);
+    if (ok) {
+        payloadLog("Bootstrap succeeded.");
+    } else {
+        payloadLog("Bootstrap failed: %s", err.c_str());
+    }
     return 0;
 }
 
