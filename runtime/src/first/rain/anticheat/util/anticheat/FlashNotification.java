@@ -7,6 +7,7 @@ import net.minecraft.client.gui.ScaledResolution;
 import net.minecraft.util.ResourceLocation;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import first.rain.anticheat.RainCore;
 import first.rain.anticheat.config.cfg;
 
 /**
@@ -40,6 +41,9 @@ public class FlashNotification {
 
    @SubscribeEvent
    public void onRenderOverlay(RenderGameOverlayEvent.Post event) {
+      if (!RainCore.isEnabled()) {
+         return;
+      }
       if (event.type != RenderGameOverlayEvent.ElementType.ALL || flashStartMillis < 0L) {
          return;
       }

@@ -5,6 +5,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Properties;
+import net.minecraft.client.Minecraft;
 
 /**
  * Minimal config holder matching the cfg.v.* access pattern. Persists to
@@ -12,9 +13,12 @@ import java.util.Properties;
  */
 public class cfg {
    public static final Values v = new Values();
-   private static final File FILE = new File("config", "rain.properties");
 
    public static class Values {
+      public boolean masterEnabled = true;
+      public int guiKey = 54;   // Keyboard.KEY_RSHIFT
+      public int toggleKey = 0; // Keyboard.KEY_NONE
+
       public boolean detectAutoBlock = true;
       public boolean detectLegitScaffold = true;
       public boolean detectKillaura = true;
@@ -33,16 +37,32 @@ public class cfg {
       load();
    }
 
+   /** Config file under the Minecraft data dir when available, else relative. */
+   private static File configFile() {
+      try {
+         Minecraft mc = Minecraft.func_71410_x();
+         if (mc != null) {
+            return new File(new File(mc.field_71412_D, "config"), "rain.properties");
+         }
+      } catch (Throwable ignored) {
+      }
+      return new File("config", "rain.properties");
+   }
+
    public static void load() {
-      if (!FILE.exists()) {
+      File file = configFile();
+      if (!file.exists()) {
          return;
       }
       Properties props = new Properties();
-      try (FileInputStream in = new FileInputStream(FILE)) {
+      try (FileInputStream in = new FileInputStream(file)) {
          props.load(in);
       } catch (IOException ignored) {
          return;
       }
+      v.masterEnabled = parseBool(props, "masterEnabled", v.masterEnabled);
+      v.guiKey = parseInt(props, "guiKey", v.guiKey);
+      v.toggleKey = parseInt(props, "toggleKey", v.toggleKey);
       v.detectAutoBlock = parseBool(props, "detectAutoBlock", v.detectAutoBlock);
       v.detectLegitScaffold = parseBool(props, "detectLegitScaffold", v.detectLegitScaffold);
       v.detectKillaura = parseBool(props, "detectKillaura", v.detectKillaura);
@@ -57,6 +77,9 @@ public class cfg {
 
    public static void save() {
       Properties props = new Properties();
+      props.setProperty("masterEnabled", Boolean.toString(v.masterEnabled));
+      props.setProperty("guiKey", Integer.toString(v.guiKey));
+      props.setProperty("toggleKey", Integer.toString(v.toggleKey));
       props.setProperty("detectAutoBlock", Boolean.toString(v.detectAutoBlock));
       props.setProperty("detectLegitScaffold", Boolean.toString(v.detectLegitScaffold));
       props.setProperty("detectKillaura", Boolean.toString(v.detectKillaura));
@@ -67,11 +90,12 @@ public class cfg {
       props.setProperty("nametagEnabled", Boolean.toString(v.nametagEnabled));
       props.setProperty("nametagColor", String.format("%06X", v.nametagColor & 0xFFFFFF));
       props.setProperty("nametagOpacity", Integer.toString(v.nametagOpacity));
-      File parent = FILE.getParentFile();
+      File file = configFile();
+      File parent = file.getParentFile();
       if (parent != null) {
          parent.mkdirs();
       }
-      try (FileOutputStream out = new FileOutputStream(FILE)) {
+      try (FileOutputStream out = new FileOutputStream(file)) {
          props.store(out, "Rain settings");
       } catch (IOException ignored) {
       }

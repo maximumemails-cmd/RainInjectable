@@ -1,5 +1,6 @@
 package first.rain.anticheat.util.anticheat;
 
+import first.rain.anticheat.RainCore;
 import first.rain.anticheat.config.cfg;
 import first.rain.anticheat.util.RenderUtil;
 import java.lang.reflect.Field;
@@ -31,6 +32,9 @@ public class NametagOverlayRenderer {
 
    @SubscribeEvent
    public void onRenderPlayerList(RenderGameOverlayEvent.Post event) {
+      if (!RainCore.isEnabled()) {
+         return;
+      }
       if (event.type != RenderGameOverlayEvent.ElementType.PLAYER_LIST || !cfg.v.nametagEnabled) {
          return;
       }

@@ -1,5 +1,6 @@
 package first.rain.anticheat.gui;
 
+import first.rain.anticheat.RainCore;
 import first.rain.anticheat.config.cfg;
 import first.rain.anticheat.util.RenderUtil;
 import java.util.ArrayList;
@@ -15,7 +16,7 @@ public class ClickGui extends GuiScreen {
    private static final int PADDING = 10;
    private static final int TITLE_BAR_HEIGHT = 20;
    private static final int TAB_BAR_HEIGHT = 18;
-   private static final int CONTENT_HEIGHT = 104;
+   private static final int CONTENT_HEIGHT = 152;
    private static final int FLASH_CARD_HEIGHT = 100;
    private static final int NAMETAG_CARD_HEIGHT = 104;
    private static final int TAB_GAP = 24;
@@ -40,6 +41,8 @@ public class ClickGui extends GuiScreen {
    private float tabAnim;
 
    public ClickGui() {
+      this.alertCards.add(new ModuleCard("Rain (master)", "Enable or disable all detection and alerts.",
+         () -> RainCore.isEnabled(), (v) -> RainCore.setEnabled(v, true), CARD_W, CARD_H));
       this.alertCards.add(new ModuleCard("AutoBlock", "Swinging while sword-blocking.",
          () -> cfg.v.detectAutoBlock, (v) -> cfg.v.detectAutoBlock = v, CARD_W, CARD_H));
       this.alertCards.add(new ModuleCard("LegitScaffold", "Robotic crouch-bridge rhythm.",
@@ -91,7 +94,10 @@ public class ClickGui extends GuiScreen {
       RenderUtil.drawRoundedOutline(panelX, panelY, this.panelWidth, this.panelHeight, 7.0F, 1.0F, 0x46FFFFFF);
 
       int titleTextY = panelY + (TITLE_BAR_HEIGHT - 8) / 2;
-      this.field_146289_q.func_175063_a("AntiCheat", (float)(panelX + PADDING), (float)titleTextY, 0xFFFFFFFF);
+      this.field_146289_q.func_175063_a("Rain", (float)(panelX + PADDING), (float)titleTextY, 0xFFFFFFFF);
+      int statusColor = RainCore.isEnabled() ? 0xFF32D74B : 0xFFFF3B30;
+      this.field_146289_q.func_175063_a(RainCore.isEnabled() ? "ON" : "OFF",
+         (float)(panelX + PADDING + this.field_146289_q.func_78256_a("Rain ")), (float)titleTextY, statusColor);
       String hint = "drag";
       this.field_146289_q.func_78276_b(hint, panelX + this.panelWidth - PADDING - this.field_146289_q.func_78256_a(hint), titleTextY, 0xFF5A5A5A);
 
@@ -266,7 +272,7 @@ public class ClickGui extends GuiScreen {
       this.dragging = false;
       this.flashCard.mouseReleased();
       this.nametagCard.mouseReleased();
-      cfg.save();
+      RainCore.saveKeybinds();
    }
 
    private void clampPanel() {

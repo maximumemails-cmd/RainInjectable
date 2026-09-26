@@ -7,17 +7,13 @@ import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.ChatComponentText;
-import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.world.WorldEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
-import first.rain.anticheat.gui.ClickGuiKeybind;
 import first.rain.anticheat.util.anticheat.AlertManager;
 import first.rain.anticheat.util.anticheat.AntiCheatData;
-import first.rain.anticheat.util.anticheat.FlashNotification;
-import first.rain.anticheat.util.anticheat.NametagOverlayRenderer;
 import first.rain.anticheat.util.anticheat.PlayerEligibility;
 
 /**
@@ -34,10 +30,7 @@ public class Rain {
 
    @Mod.EventHandler
    public void init(FMLInitializationEvent event) {
-      ClickGuiKeybind.register();
-      MinecraftForge.EVENT_BUS.register(this);
-      MinecraftForge.EVENT_BUS.register(new FlashNotification());
-      MinecraftForge.EVENT_BUS.register(new NametagOverlayRenderer());
+      RainCore.start("mod");
    }
 
    /** Prints a client-side chat line (not sent to the server). */
@@ -50,6 +43,9 @@ public class Rain {
 
    @SubscribeEvent
    public void onClientTick(TickEvent.ClientTickEvent event) {
+      if (!RainCore.isEnabled()) {
+         return;
+      }
       if (event.phase != TickEvent.Phase.END) {
          return;
       }

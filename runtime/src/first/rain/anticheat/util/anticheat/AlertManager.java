@@ -1,6 +1,7 @@
 package first.rain.anticheat.util.anticheat;
 
 import first.rain.anticheat.Rain;
+import first.rain.anticheat.RainCore;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -55,6 +56,9 @@ public final class AlertManager {
    }
 
    public static void flag(EntityPlayer player, CheckType check, int vl) {
+      if (!RainCore.isEnabled()) {
+         return;
+      }
       Minecraft mc = Minecraft.func_71410_x();
       if (player == null || mc.field_71441_e == null) {
          return;
