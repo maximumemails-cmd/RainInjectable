@@ -3,6 +3,9 @@ project(RainInjectable LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# Static CRT: rain-payload.dll is loaded into a javaw.exe we do not control, so it
+# must not depend on the VC++ redistributable being installed.
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS OFF)
 
 if(NOT WIN32)
