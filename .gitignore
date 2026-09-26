@@ -1,0 +1,16 @@
+# Upstream reference clones (re-fetch with scripts/fetch-upstream.ps1; pinned SHAs in docs/UPSTREAM.md)
+/upstream/
+
+# Build output
+/build/
+/dist/
+/runtime/build/
+/runtime/libs/
+*.class
+*.log
+
+# IDE
+/.vs/
+/.idea/
+*.iml
+/.vscode/settings.json
