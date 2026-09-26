@@ -55,22 +55,35 @@ dist/                staged release (git-ignored): RainInjector.exe, rain-payloa
 
 ## Phase log
 
-- [x] Phase 0 — toolchain audit, upstream clones, workspace + git init
-- [ ] Phase 1 — architecture review docs (Lion, Rain)
-- [ ] Phase 2 — baseline builds of upstream
-- [ ] Phase 3 — Rain refactor (RainCore, master toggle, keybind, config, GUI)
-- [ ] Phase 4 — Strip Lion loader to native-only, rebrand injector
-- [ ] Phase 5 — Payload → rain-runtime.jar bootstrap
-- [ ] Phase 6 — Build system + environment check + dist staging
-- [ ] Phase 7 — Static verification + docs
-- [ ] Phase 8 — Live test (requires explicit user approval — NOT started)
+- [x] Phase 0 — toolchain audit, upstream clones, workspace + git init (`2a79814`)
+- [x] Phase 1 — architecture review docs (Lion, Rain) (`e6cd568`)
+- [x] Phase 2 — baseline builds of upstream: Rain jar via javac/JDK 8, Lion native via CMake/VS17 (`35939a4`)
+- [x] Phase 3 — Rain refactor: `RainCore`, master enable/disable, toggle keybind, `rain.properties` config, GUI master card (`0e1309f`)
+- [x] Phase 4 — Lion loader stripped to native-only (no JVMTI/agent_attach/native_bridge/ASM/cheat code), rebranded `RainInjector` (`03105f4`, `7c01e65`)
+- [x] Phase 5 — Payload loads `rain-runtime.jar` via `RainBootstrap.start(jar, dll)` (`7c01e65`)
+- [x] Phase 6 — `scripts/build.ps1`, `scripts/check-environment.ps1`, `dist/` staging (`7c01e65`)
+- [x] Phase 7 — Static verification, bootstrap harness, docs (`89f2ea8`, `3413cf9`, this commit)
+- [ ] Phase 8 — Live in-game test — **requires explicit user approval — NOT started**
 
 ## Blockers / open items
 
 - No Forge 1.8.9 profile installed locally → live test cannot run until one is
   installed (see docs/TESTING.md).
 - Rain upstream has **no LICENSE file** — see docs/LICENSE-NOTES.md.
+- Visual/GUI changes (master card, title ON/OFF state) are compiled but never
+  rendered; unverified until the live test.
 
-## Last verified state
+## Last verified state (2026-09-26)
 
-Nothing built yet.
+- `scripts/check-environment.ps1` → exit 0.
+- `scripts/build.ps1` → runtime jar + native Release build, 0 warnings.
+- `scripts/test-bootstrap.ps1` → `HARNESS OK (system)`, `HARNESS OK (wrapper)`
+  (fake launchwrapper; exercises RainBootstrap classloader discovery, addURL,
+  idempotency — does not exercise Minecraft/Forge itself).
+- `dist/`: `RainInjector.exe` 752640 B, `rain-payload.dll` 684032 B,
+  `rain-runtime.jar` 71490 B (29 classes), `LICENSE`, `LICENSE-NOTES.md`.
+- dumpbin: both native binaries x64; payload has no exports and imports only
+  KERNEL32 (static CRT).
+- javap: `RainBootstrap` references only `java.*`; `@Mod` retained on `Rain`
+  so the jar also works from a `mods/` folder.
+- Not verified: anything in a running game (injection, Forge hook, GUI, alerts).
