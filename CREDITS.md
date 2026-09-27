@@ -69,10 +69,9 @@ the root [LICENSE](LICENSE), and changes to its native sources are recorded in
 [docs/CHANGES-FROM-LION.md](docs/CHANGES-FROM-LION.md).
 
 The pinned Rain Anti-Cheat repository has **no declared public license**. The
-RainInjectable owner reports permission to publish a modified version on GitHub,
-but the quoted grant does not specify GPL-compatible licensing of Rain-derived
-Java sources. The root GPL text does not resolve that issue. See
-[docs/LICENSE-NOTES.md](docs/LICENSE-NOTES.md) for this unresolved issue.
+RainInjectable owner reports obtaining the author's permission to distribute
+this modified Rain source as part of RainInjectable under GPL-3.0. See
+[docs/LICENSE-NOTES.md](docs/LICENSE-NOTES.md) for the exact reported grant.
 
 Minecraft, Forge, MCP mappings, LWJGL, and SpecialSource are obtained or used
 at build time; their downloaded artifacts are not committed here. Their own

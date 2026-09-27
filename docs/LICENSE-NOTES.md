@@ -23,17 +23,15 @@ is declared.
 The RainInjectable owner reports receiving permission from `@Raindots` on
 Discord to publish a modified Rain Anti-Cheat version on GitHub. The supplied
 exchange was a request, “Do you mind if I publish a modified version of rain
-anti cheat on github?”, answered “Yeh sure”. This is a publication grant as
-reported by the owner; the repository does not contain independent verification
-of the Discord account's identity or broader license terms. In particular, the
-quoted grant does not state whether Rain-derived code may be licensed to others
-under GPL-3.0 or another GPL-compatible license. That matters because
-RainInjectable combines Rain code with GPL-3.0 LionInjectable code.
+anti cheat on github?”, answered “Yeh sure”. In a follow-up exchange, the
+owner asked, “May I distribute modified Rain Anti-Cheat source as part of
+RainInjectable under GPL-3.0, so recipients may use, modify, and redistribute
+it under GPL-3.0?” The answer was, “Yes that's also fine.”
 
-- Do not present the root GPL-3.0 text as a general public license granted by
-  Rain's copyright holder for the Rain-derived Java sources.
-- Clarify GPL-compatible distribution terms before publishing the combined
-  project or release artifact.
+On the basis of those owner-supplied permissions, Rain-derived Java sources in
+this project are distributed under GPL-3.0 alongside the Lion-derived native
+sources. The repository does not independently verify the Discord account's
+identity or rights in any material credited by the original Rain README.
 - Credits from Rain's README/`mcmod.info` are preserved in the runtime jar's
   `mcmod.info`.
 
