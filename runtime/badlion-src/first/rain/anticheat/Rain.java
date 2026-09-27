@@ -60,6 +60,7 @@ public final class Rain {
          }
       }
       ANTICHEAT.retainPlayers(checkablePlayerIds, realPlayerIds);
+      ANTICHEAT.observeTick(checkablePlayers, mc.field_71439_g, tick);
       for (EntityPlayer player : checkablePlayers) ANTICHEAT.anticheatCheck(player);
       eligiblePlayers = checkablePlayers.size();
       processedTicks++;

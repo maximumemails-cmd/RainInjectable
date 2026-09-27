@@ -30,6 +30,8 @@
 *.keystore
 *credentials*.json
 *secrets*.json
+rain-evidence-*.jsonl
+rain.properties
 
 # IDE
 /.vs/

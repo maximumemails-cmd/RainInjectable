@@ -18,9 +18,12 @@ foreach ($check in @('autoBlockCheck', 'legitScaffoldCheck', 'killauraCheck')) {
 }
 Assert-Omits $rain 'isMarked\(player' 'marked-player analysis gate'
 Assert-Contains $rain 'ANTICHEAT\.retainPlayers' 'player retention'
+Assert-Contains $rain 'ANTICHEAT\.observeTick' 'complete tick observation'
 Assert-Contains $rain 'onWorldUnload' 'world unload handler'
 Assert-Contains $rain 'mc\.field_71441_e != lastWorld' 'world change reset'
 Assert-Contains $alerts 'markedPlayers\.keySet\(\)\.retainAll' 'mark cleanup'
+Assert-Contains $alerts 'ledger\.add' 'dependency-aware evidence recording'
+Assert-Omits $alerts 'markedPlayers\.put' 'unvalidated public mark'
 Assert-Contains $core 'if \(started\)' 'idempotent start guard'
 Assert-Contains $core 'MinecraftForge\.EVENT_BUS\.register\(new Rain\(\)\)' 'tick registration'
 Assert-Contains $core 'Rain\.ANTICHEAT\.clearAll\(\)' 'master off reset'
@@ -33,6 +36,9 @@ Assert-Contains $keys 'Keyboard\.KEY_RSHIFT' 'default Right Shift binding'
 Assert-Contains $core 'cfg\.v\.guiKey = ClickGuiKeybind\.OPEN_GUI' 'configurable GUI key persistence'
 $checks = Join-Path $src 'util\anticheat\checks'
 foreach ($file in @('AutoBlockCheck.java', 'LegitScaffoldCheck.java', 'KillauraCheck.java')) {
+    if (-not (Test-Path (Join-Path $checks $file))) { throw "missing $file" }
+}
+foreach ($file in @('ObservationEngine.java', 'EvidenceLedger.java', 'EvidenceExporter.java')) {
     if (-not (Test-Path (Join-Path $checks $file))) { throw "missing $file" }
 }
 $unexpected = Get-ChildItem (Join-Path $src 'util\anticheat') -Recurse -Filter '*.java' |

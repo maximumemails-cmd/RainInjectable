@@ -15,7 +15,15 @@ $checks = Join-Path $root 'runtime\src\first\rain\anticheat\util\anticheat\check
     (Join-Path $checks 'EpisodeEvidence.java') (Join-Path $checks 'AimEvidence.java') `
     (Join-Path $checks 'AimGeometry.java') `
     (Join-Path $checks 'AutoBlockEvidence.java') (Join-Path $checks 'ScaffoldEvidence.java') `
-    (Join-Path $root 'tests\detector-harness\Harness.java')
+    (Join-Path $checks 'ObservationEngine.java') (Join-Path $checks 'EvidenceLedger.java') `
+    (Join-Path $checks 'EvidenceExporter.java') `
+    (Join-Path $root 'tests\detector-harness\Harness.java') `
+    (Join-Path $root 'tests\detector-harness\ObservationHarness.java') `
+    (Join-Path $root 'tests\detector-harness\EvidenceHarness.java')
 if ($LASTEXITCODE -ne 0) { throw 'detector harness compilation failed' }
 & $java -cp $out Harness
 if ($LASTEXITCODE -ne 0) { throw 'detector harness failed' }
+& $java -cp $out ObservationHarness
+if ($LASTEXITCODE -ne 0) { throw 'observation harness failed' }
+& $java -cp $out EvidenceHarness
+if ($LASTEXITCODE -ne 0) { throw 'evidence harness failed' }

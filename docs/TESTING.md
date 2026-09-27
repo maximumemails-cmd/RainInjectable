@@ -29,14 +29,14 @@ reached Java. The initial Forge bootstrap stopped because it found `ave` (the
 obfuscated Minecraft class) and no Forge event bus. The dedicated Badlion JAR
 was then compiled against Rain's detector sources, remapped from SRG to Notch
 names, and loaded without Lion cheat classes. In a restarted Badlion server
-session, PID 27452, the payload reported `Complete`; its local status file
+session, the payload reported `Complete`; its local status file
 showed `inWorld=true`, 51 eligible players, increasing processed detector
 ticks and no runtime error. The JVM remained responsive. This proves the
 detector loop ran on that session; it does not establish alert accuracy against
 actual cheating. The JDK external Attach API remained disabled; Rain's native
 DLL/JNI path did not use it.
 
-In a later live Badlion session, PID 27260, the new GUI build initialized its
+In a later live Badlion session, the new GUI build initialized its
 GUI classes, recorded two Right Shift opens with a close between them, and
 continued processing detector ticks with no reported runtime error.
 
@@ -45,11 +45,14 @@ the system and wrapper classloader paths, a JAR path with spaces and Unicode,
 repeat startup, and a startup failure that must leave the loaded flag unset.
 It does not start Minecraft or prove Forge event-bus delivery.
 
-The detector harness has 345 assertions over synthetic normal, skilled,
-suspicious, noisy and recovery traces. `check-detector-static.ps1` verifies
-detector registration and cleanup, master/world resets, key persistence, and
-absence of network/process/send behavior in detector sources. Synthetic
-traces cannot establish real attack attribution.
+The legacy detector harness has 345 assertions over synthetic normal, skilled,
+suspicious, noisy and recovery traces. The observation and evidence harnesses
+cover gross/subtle reach, high ping, crowds, motion, gaps, reset, replay,
+dependency caps, clean-exposure decay and alias export. `check-detector-static.ps1`
+verifies detector registration and cleanup, master/world resets, key persistence,
+review-only policy and absence of network/process/send behavior in detector
+sources. Synthetic traces cannot establish real attack attribution or a measured
+false-positive rate.
 
 `verify-release.ps1` checks both native binaries are x64, compares the GUI and
 Java runtime version markers, confirms the EXE's embedded DLL and both JARs match the
@@ -70,8 +73,8 @@ writes SHA-256 hashes to the local release folder.
 - Forge event delivery and visual desktop rendering of the injector remain
   unverified. Badlion's GUI key opened the screen in the live JVM, and the
   master control changed and persisted across a close and reopen. Flash and
-  Nametag overlays are not part of the Badlion adapter yet; the final Badlion
-  build hides those controls.
+  Nametag overlays are not part of the Badlion adapter yet. The review policy
+  does not send unvalidated evidence into a public red marker.
 - After a partial bootstrap failure, restart Minecraft before retrying; an
   already-loaded native DLL will not rerun its process-attach entry point.
 - The injector now clears the prior PID status and waits up to 36 seconds for

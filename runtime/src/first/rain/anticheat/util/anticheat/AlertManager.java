@@ -11,6 +11,11 @@ import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.EnumChatFormatting;
+import first.rain.anticheat.util.anticheat.checks.EvidenceLedger;
+import first.rain.anticheat.util.anticheat.checks.EvidenceExporter;
+import first.rain.anticheat.util.anticheat.checks.ObservationEngine;
+import java.io.File;
+import java.io.IOException;
 
 /**
  * Alert history is separate from active detector state. Repeated failures are
@@ -18,9 +23,9 @@ import net.minecraft.util.EnumChatFormatting;
  */
 public final class AlertManager {
    public enum CheckType {
-      AUTO_BLOCK("AutoBlock"),
-      LEGIT_SCAFFOLD("LegitScaffold"),
-      KILLAURA("Killaura");
+      AUTO_BLOCK("block-use overlap"),
+      LEGIT_SCAFFOLD("bridging rhythm"),
+      KILLAURA("aim pattern");
 
       private final String displayName;
 
@@ -51,12 +56,23 @@ public final class AlertManager {
 
    private static final Map<UUID, MarkedPlayer> markedPlayers = new HashMap<UUID, MarkedPlayer>();
    private static final long REPEAT_LOG_TICKS = 200L;
-   private static final Map<UUID, Long> lastRepeatLog = new HashMap<UUID, Long>();
+   private static final Map<UUID, Long> lastReviewMessage = new HashMap<UUID, Long>();
+   private static final EvidenceLedger ledger = new EvidenceLedger();
 
    private AlertManager() {
    }
 
-   public static void flag(EntityPlayer player, CheckType check, int vl) {
+   public static void recordLegacy(EntityPlayer player, CheckType check, int vl,
+      String measurements) {
+      // Legacy checks have no measured false-positive rate. Keep their signal
+      // visible as review evidence without a red nametag or confirmed label.
+      String group = check == CheckType.LEGIT_SCAFFOLD ? "bridging rhythm" : "combat proxies";
+      review(player, group, check.displayName(), "legacy pattern score=" + vl
+         + "; " + measurements + "; attack/placement identity is inferred", 1);
+   }
+
+   public static void review(EntityPlayer player, String group, String hypothesis,
+      String explanation, int units) {
       if (!RainCore.isEnabled()) {
          return;
       }
@@ -70,25 +86,20 @@ public final class AlertManager {
       }
 
       UUID uuid = player.func_110124_au();
-      if (markedPlayers.containsKey(uuid)) {
-         if (!first.rain.anticheat.config.cfg.v.debugMessages) return;
-         long tick = mc.field_71441_e.func_82737_E();
-         Long last = lastRepeatLog.get(uuid);
-         if (last == null || tick - last >= REPEAT_LOG_TICKS) {
-            lastRepeatLog.put(uuid, tick);
-            System.out.println("[Rain] repeat detection " + player.func_70005_c_() + " " + check.displayName() + " VL=" + vl);
-         }
-         return;
-      }
-
-      markedPlayers.put(uuid, new MarkedPlayer(uuid, player.func_70005_c_(), check, vl, mc.field_71441_e.func_82737_E()));
+      long tick = mc.field_71441_e.func_82737_E();
+      EvidenceLedger.State state = ledger.add(uuid, tick, group, hypothesis, explanation, units);
+      if (state != EvidenceLedger.State.REVIEW) return;
+      Long last = lastReviewMessage.get(uuid);
+      if (last != null && tick >= last && tick - last < REPEAT_LOG_TICKS) return;
+      lastReviewMessage.put(uuid, tick);
       Rain.addMessage(
          EnumChatFormatting.DARK_GRAY + "[" + EnumChatFormatting.WHITE + "AntiCheat" + EnumChatFormatting.DARK_GRAY + "] "
             + EnumChatFormatting.WHITE + player.func_70005_c_()
-            + EnumChatFormatting.GRAY + " flagged "
-            + EnumChatFormatting.AQUA + check.displayName()
-            + EnumChatFormatting.GRAY + " (VL: " + EnumChatFormatting.WHITE + vl + EnumChatFormatting.GRAY + ")");
-      FlashNotification.trigger();
+            + EnumChatFormatting.GRAY + " has a pattern to review ("
+            + EnumChatFormatting.AQUA + hypothesis + EnumChatFormatting.GRAY + ")");
+      if (first.rain.anticheat.config.cfg.v.debugMessages) {
+         System.out.println("[Rain] review " + player.func_110124_au() + " " + hypothesis + ": " + explanation);
+      }
    }
 
    public static boolean isMarked(UUID uuid) {
@@ -106,18 +117,29 @@ public final class AlertManager {
    /** Drop all marked players. Call on world change / disconnect. */
    public static void clear() {
       markedPlayers.clear();
-      lastRepeatLog.clear();
+      lastReviewMessage.clear();
+      ledger.clear();
    }
 
    public static void forgetPlayer(UUID uuid) {
       if (uuid != null) {
          markedPlayers.remove(uuid);
-         lastRepeatLog.remove(uuid);
+         lastReviewMessage.remove(uuid);
+         ledger.forget(uuid);
       }
    }
 
    public static void retainPlayers(Set<UUID> playerIds) {
       markedPlayers.keySet().retainAll(playerIds);
-      lastRepeatLog.keySet().retainAll(playerIds);
+      lastReviewMessage.keySet().retainAll(playerIds);
+      ledger.retain(playerIds);
+   }
+
+   public static void cleanExposure(UUID player, long tick) { ledger.cleanExposure(player, tick); }
+
+   public static java.util.List<EvidenceLedger.Fact> evidence() { return ledger.facts(); }
+
+   public static void exportEvidence(File file, ObservationEngine observations) throws IOException {
+      EvidenceExporter.write(file, observations, ledger);
    }
 }

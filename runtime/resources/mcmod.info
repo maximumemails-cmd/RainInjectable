@@ -2,14 +2,14 @@
   {
     "modid": "rain",
     "name": "Rain",
-    "description": "Client-side anticheat alerts: flags suspected cheaters near you in chat. Injectable runtime build (RainInjectable).",
-    "version": "1.1.0-injectable",
+    "description": "Client-side passive anti-cheat with conservative, reviewable evidence. Injectable runtime build (RainInjectable).",
+    "version": "1.2.0-injectable",
     "mcversion": "1.8.9",
     "authorList": ["Meowtils & MXproject"],
     "credits": "",
     "url": "",
     "updateUrl": "",
-    "logoFile": "assets/rain/logo.png",
+    "logoFile": "",
     "screenshots": [],
     "dependencies": []
   }

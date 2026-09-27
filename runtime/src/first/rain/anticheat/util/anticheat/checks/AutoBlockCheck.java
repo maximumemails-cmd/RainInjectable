@@ -31,7 +31,8 @@ public class AutoBlockCheck {
       if (st.observe(tick, swing, block, combat)) {
          if (cfg.v.debugMessages) System.out.println("[Rain] AutoBlock " + player.func_70005_c_()
             + " episodes=" + st.episodes() + " score=" + st.score());
-         AlertManager.flag(player, AlertManager.CheckType.AUTO_BLOCK, st.score());
+         AlertManager.recordLegacy(player, AlertManager.CheckType.AUTO_BLOCK, st.score(),
+            "overlapEpisodes=" + st.episodes());
       }
    }
 

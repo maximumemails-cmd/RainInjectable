@@ -1,53 +1,18 @@
-# RainInjectable 1.1.0-injectable — Windows x64 release
+# RainInjectable 1.2.0-injectable — Windows x64
 
-## Changes
+## Detection and evidence
 
-- Discover the game JVM through its launcher parent and report separate
-  discovery, JVM, architecture, Minecraft, framework, attach, payload,
-  bootstrap and Rain runtime stages.
-- Show a focused Home view, detailed Compatibility view, useful Logs and the
-  existing automatic detection setting in a rebuilt Win32 interface.
-- Use a restrained DWM-backed chrome area and shared layered glass treatment
-  for interactive controls, with a solid fallback when transparency is
-  unavailable.
-- Pass payload failure codes and next actions through the status file. Redact
-  authentication arguments from UI and console diagnostics.
-- Refuse injection when the selected JVM has no Rain bootstrap strategy.
-  Clear stale status before injection and wait for the full game-thread startup
-  window before reporting a timeout. Remove the misleading native eject action;
-  Rain stays registered in Java until the game exits.
-- Add a separate Badlion Client 1.8.9 runtime JAR. It remaps Rain's detector
-  and settings GUI references from SRG to obfuscated Minecraft names, schedules
-  checks and polls Right Shift on Badlion's game thread. The Badlion screen
-  shows detector and debug controls; its Forge-only overlay tabs are hidden.
-  The JAR does not include Lion cheat classes.
+- Forge and Badlion 1.8.9 now collect a complete tick-snapshot batch before running checks, with bounded per-player history and continuity, ping, teleport, and observer tick-quality gates.
+- Gross reach candidates use the minimum attacker-to-victim-box distance across recent positions, a broad observer allowance, isolated combat attribution, and repeated independent episodes. Subtle reach is intentionally left unclassified.
+- Legacy aim, AutoBlock, and bridging-rhythm checks now contribute weak, reviewable evidence. They do not issue an unvalidated red mark or describe a player as confirmed cheating.
+- An ordinal evidence ledger caps checks that share inferred attack data, accumulates separated episodes, and decays only during usable observation. Its index is not a cheat probability.
+- The Notifications tab can export bounded local JSONL evidence, including reasons for abstention and historical samples that replay the reach calculation. UUIDs are replaced with aliases for each export.
+- New thresholds are documented in `NEXT_GEN_IMPLEMENTATION_SUMMARY.md`; `README.md` links the research and implementation audit.
 
-## Badlion finding
+## Distribution
 
-The running Badlion Minecraft process was Java 17.0.13 x64, Minecraft 1.8.9.
-It had no Forge event bus and used obfuscated Minecraft classes. The native
-Lion-derived DLL loading path succeeded. A dedicated Rain adapter then started
-without Forge. In a restarted server session, its local status showed 51
-eligible players, increasing detector ticks, no runtime error, and a responsive
-game. A later session confirmed GUI class initialization and two Right Shift
-opens in the live game, while detector ticks continued without errors. This
-validates startup, keyboard handling and the observation loop in those sessions. Alert accuracy and
-compatibility with other Badlion builds are not established by this test.
+The single-file `RainInjectable.exe` embeds the native payload and both Java runtimes. The ZIP includes the executable, README, GPL-3.0 license, license notes, credits, release notes and the implementation audit. It contains no development cache or private configuration. The corresponding source is the GitHub release tag.
 
 ## Validation and limits
 
-The MSVC x64 Release build, Java 8 runtime builds, native compatibility and
-layout tests, synthetic bootstrap harness, detector harness and static checks,
-and embedded resource verification passed. A live Forge instance was
-unavailable, and automated desktop visual testing was unavailable. Badlion's
-adapter runs detectors, local chat alerts, and the settings GUI. Flash and
-Nametag overlays still need a Badlion render hook.
-
-The supplied Lion executable, DLL and JAR match the pinned upstream build.
-Rain uses the native DLL loading path and a separate Java detector runtime for
-Badlion. Lunar support is not implemented or verified in this release.
-
-The owner reports permission to distribute this modified Rain source as part of
-RainInjectable under GPL-3.0. The ZIP includes the executable, GPL-3.0 license,
-license notes, credits, and the README. The matching source is available from
-the GitHub release tag.
+The Java 8 Forge and Badlion runtimes, MSVC x64 Release build, native compatibility and layout tests, bootstrap harness, detector/observation/evidence harnesses, static checks and embedded resource verification are run for this release. Synthetic tests do not measure real-server false-positive rate or detection recall. Live Forge and updated Badlion gameplay behavior have not been revalidated in this release. A passive observer cannot access remote serverbound attacks, clicks, placement packets or raw mouse input. No high-confidence public claim is enabled without controlled observer/server captures and a representative legitimate-player validation set.

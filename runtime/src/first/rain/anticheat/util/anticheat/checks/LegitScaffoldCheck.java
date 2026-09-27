@@ -38,7 +38,8 @@ public class LegitScaffoldCheck {
          if (cfg.v.debugMessages) System.out.println("[Rain] Scaffold " + player.func_70005_c_()
             + " regular=" + st.regularEpisodes() + " episodes=" + st.episodes()
             + " score=" + st.score());
-         AlertManager.flag(player, AlertManager.CheckType.LEGIT_SCAFFOLD, st.score());
+         AlertManager.recordLegacy(player, AlertManager.CheckType.LEGIT_SCAFFOLD, st.score(),
+            "regularCrouches=" + st.regularEpisodes() + ", rhythmEpisodes=" + st.episodes());
       }
    }
 

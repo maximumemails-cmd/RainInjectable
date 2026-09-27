@@ -22,6 +22,10 @@ public class cfg {
       public boolean detectAutoBlock = true;
       public boolean detectLegitScaffold = true;
       public boolean detectKillaura = true;
+      public boolean reviewGrossReach = true;
+      public int maxObserverPingMs = 150;
+      public double reachObserverSlack = 1.5D;
+      public double reachGrossResidual = 0.5D;
       public boolean debugMessages = false;
 
       public boolean flashEnabled = false;
@@ -66,6 +70,13 @@ public class cfg {
       v.detectAutoBlock = parseBool(props, "detectAutoBlock", v.detectAutoBlock);
       v.detectLegitScaffold = parseBool(props, "detectLegitScaffold", v.detectLegitScaffold);
       v.detectKillaura = parseBool(props, "detectKillaura", v.detectKillaura);
+      v.reviewGrossReach = parseBool(props, "reviewGrossReach", v.reviewGrossReach);
+      v.maxObserverPingMs = Math.max(0, Math.min(1000,
+         parseInt(props, "maxObserverPingMs", v.maxObserverPingMs)));
+      v.reachObserverSlack = Math.max(1.5D, Math.min(10.0D, parseDouble(props,
+         "reachObserverSlack", v.reachObserverSlack)));
+      v.reachGrossResidual = Math.max(0.5D, Math.min(10.0D, parseDouble(props,
+         "reachGrossResidual", v.reachGrossResidual)));
       v.debugMessages = parseBool(props, "debugMessages", v.debugMessages);
       v.flashEnabled = parseBool(props, "flashEnabled", v.flashEnabled);
       v.flashColor = parseHexColor(props, "flashColor", v.flashColor);
@@ -83,6 +94,10 @@ public class cfg {
       props.setProperty("detectAutoBlock", Boolean.toString(v.detectAutoBlock));
       props.setProperty("detectLegitScaffold", Boolean.toString(v.detectLegitScaffold));
       props.setProperty("detectKillaura", Boolean.toString(v.detectKillaura));
+      props.setProperty("reviewGrossReach", Boolean.toString(v.reviewGrossReach));
+      props.setProperty("maxObserverPingMs", Integer.toString(v.maxObserverPingMs));
+      props.setProperty("reachObserverSlack", Double.toString(v.reachObserverSlack));
+      props.setProperty("reachGrossResidual", Double.toString(v.reachGrossResidual));
       props.setProperty("debugMessages", Boolean.toString(v.debugMessages));
       props.setProperty("flashEnabled", Boolean.toString(v.flashEnabled));
       props.setProperty("flashColor", String.format("%06X", v.flashColor & 0xFFFFFF));
@@ -128,6 +143,17 @@ public class cfg {
       }
       try {
          return Integer.parseInt(value.trim(), 16) & 0xFFFFFF;
+      } catch (NumberFormatException e) {
+         return def;
+      }
+   }
+
+   private static double parseDouble(Properties props, String key, double def) {
+      String value = props.getProperty(key);
+      if (value == null) return def;
+      try {
+         double parsed = Double.parseDouble(value.trim());
+         return Double.isFinite(parsed) ? parsed : def;
       } catch (NumberFormatException e) {
          return def;
       }

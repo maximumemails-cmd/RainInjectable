@@ -16,7 +16,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $dist = Join-Path $root $DistName
 $nativeBuild = Join-Path (Join-Path $root 'build') $NativeBuildName
-$releaseDir = Join-Path $root 'releases\1.1.0-injectable'
+$releaseDir = Join-Path $root 'releases\1.2.0-injectable'
 
 function Find-Jdk8 {
     if ($env:RAIN_JDK8 -and (Test-Path (Join-Path $env:RAIN_JDK8 'bin\javac.exe'))) { return $env:RAIN_JDK8 }
@@ -83,6 +83,7 @@ Copy-Item $dll (Join-Path $releaseDir 'rain-payload.dll') -Force
 Copy-Item $jar (Join-Path $releaseDir 'rain-runtime.jar') -Force
 Copy-Item $badlionJar (Join-Path $releaseDir 'rain-badlion.jar') -Force
 Copy-Item (Join-Path $root 'docs\RELEASE_NOTES.md') (Join-Path $releaseDir 'RELEASE_NOTES.md') -Force
+Copy-Item (Join-Path $root 'NEXT_GEN_IMPLEMENTATION_SUMMARY.md') (Join-Path $releaseDir 'NEXT_GEN_IMPLEMENTATION_SUMMARY.md') -Force
 $bundleStage = Join-Path $root 'build\release-bundle'
 New-Item -ItemType Directory -Force -Path $bundleStage | Out-Null
 Copy-Item $exe (Join-Path $bundleStage 'RainInjectable.exe') -Force
@@ -91,13 +92,15 @@ Copy-Item (Join-Path $root 'docs\LICENSE-NOTES.md') $bundleStage -Force
 Copy-Item (Join-Path $root 'CREDITS.md') $bundleStage -Force
 Copy-Item (Join-Path $root 'README.md') $bundleStage -Force
 Copy-Item (Join-Path $root 'docs\RELEASE_NOTES.md') $bundleStage -Force
+Copy-Item (Join-Path $root 'NEXT_GEN_IMPLEMENTATION_SUMMARY.md') $bundleStage -Force
 $bundle = Join-Path $releaseDir 'RainInjectable-Windows-x64.zip'
 Compress-Archive -LiteralPath (Join-Path $bundleStage 'RainInjectable.exe'),
     (Join-Path $bundleStage 'LICENSE'),
     (Join-Path $bundleStage 'LICENSE-NOTES.md'),
     (Join-Path $bundleStage 'CREDITS.md'),
     (Join-Path $bundleStage 'README.md'),
-    (Join-Path $bundleStage 'RELEASE_NOTES.md') -DestinationPath $bundle -Force
+    (Join-Path $bundleStage 'RELEASE_NOTES.md'),
+    (Join-Path $bundleStage 'NEXT_GEN_IMPLEMENTATION_SUMMARY.md') -DestinationPath $bundle -Force
 
 Write-Host ''
 Write-Host "staged to $dist"

@@ -22,10 +22,11 @@ import first.rain.anticheat.util.anticheat.PlayerEligibility;
 @Mod(modid = Rain.MODID, name = "Rain", version = Rain.VERSION)
 public class Rain {
    public static final String MODID = "rain";
-   public static final String VERSION = "1.0";
+   public static final String VERSION = "1.2.0-injectable";
 
    public static final AntiCheatData ANTICHEAT = new AntiCheatData();
    private net.minecraft.world.World lastWorld;
+   private long lastTick = Long.MIN_VALUE;
 
    @Mod.EventHandler
    public void init(FMLInitializationEvent event) {
@@ -49,11 +50,15 @@ public class Rain {
       if (mc.field_71441_e != lastWorld) {
          ANTICHEAT.clearAll();
          lastWorld = mc.field_71441_e;
+         lastTick = Long.MIN_VALUE;
       }
       if (!RainCore.isEnabled()) return;
       if (mc.field_71441_e == null || mc.field_71439_g == null) {
          return;
       }
+      long tick = mc.field_71441_e.func_82737_E();
+      if (tick == lastTick) return;
+      lastTick = tick;
       List<?> players = mc.field_71441_e.field_73010_i; // playerEntities
       Set<UUID> realPlayerIds = new HashSet<UUID>();
       Set<UUID> checkablePlayerIds = new HashSet<UUID>();
@@ -71,6 +76,7 @@ public class Rain {
          }
       }
       ANTICHEAT.retainPlayers(checkablePlayerIds, realPlayerIds);
+      ANTICHEAT.observeTick(checkablePlayers, mc.field_71439_g, tick);
       for (EntityPlayer player : checkablePlayers) {
          ANTICHEAT.anticheatCheck(player);
       }
@@ -81,5 +87,6 @@ public class Rain {
       if (event.world != lastWorld) return;
       ANTICHEAT.clearAll();
       lastWorld = null;
+      lastTick = Long.MIN_VALUE;
    }
 }

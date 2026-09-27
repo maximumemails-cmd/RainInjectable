@@ -201,7 +201,10 @@ public class KillauraCheck {
       this.burstMachine(player, st, tick, yawChange, prevYaw, targets);
       this.trackComponent(player, st, yaw, targets);
       if (st.evidence.shouldAlert()) {
-         AlertManager.flag(player, AlertManager.CheckType.KILLAURA, (int)(st.evidence.score() / 10.0F));
+         AlertManager.recordLegacy(player, AlertManager.CheckType.KILLAURA,
+            (int)(st.evidence.score() / 10.0F), "snapHits=" + st.snapHits
+               + ", trackSamples=" + st.trackSamples + ", trackInside=" + st.trackTicks
+               + ", inferredHurtEpisodes=" + st.evidence.combatHits());
          st.evidence.afterAlert();
          st.snapHits = 0;
          st.snapMisses = 0;
@@ -214,6 +217,9 @@ public class KillauraCheck {
    /** A swing is only a candidate attack. A fresh hurt animation on a nearby,
     * plausible target supplies the stronger (still imperfect) combat context. */
    private void updateCombat(EntityPlayer player, State st, long tick, List<EntityPlayer> targets) {
+      // Crowded fights make a victim's hurt onset impossible to attribute from
+      // a relayed swing. Do not feed that ambiguity into aim or AutoBlock.
+      if (targets.size() != 1) return;
       for (EntityPlayer target : targets) {
          UUID id = target.func_110124_au();
          int hurt = target.field_70737_aN;
