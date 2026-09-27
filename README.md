@@ -59,8 +59,9 @@ injection has not been tested; see `docs/TESTING.md`.
 
 Loader code derives from LionInjectable (GPL-3.0, see `LICENSE`). Rain upstream
 has no declared license; the GPL text does not by itself license Rain-derived
-sources. Public redistribution requires clarification of the Rain copyright
-permission; see [license notes](docs/LICENSE-NOTES.md).
+sources. The project owner reports permission to publish a modified Rain version
+on GitHub; broader GPL-compatible terms for the combined project remain
+unconfirmed. See [license notes](docs/LICENSE-NOTES.md).
 
 ## Credits and acknowledgements
 

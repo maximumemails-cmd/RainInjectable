@@ -47,5 +47,7 @@ The supplied Lion executable, DLL and JAR match the pinned upstream build.
 Rain uses the native DLL loading path and a separate Java detector runtime for
 Badlion. Lunar support is not implemented or verified in this release.
 
-This is a personal-use build. Public redistribution remains pending Rain
-copyright permission, a Git remote and working GitHub authentication.
+The owner reports permission to publish a modified Rain version on GitHub.
+GPL-compatible terms for distributing the combined Rain/Lion work remain
+unconfirmed. Public release also requires a Git remote and working GitHub
+authentication.

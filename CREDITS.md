@@ -68,9 +68,10 @@ LionInjectable is licensed under **GPL-3.0**. Its license text is preserved in
 the root [LICENSE](LICENSE), and changes to its native sources are recorded in
 [docs/CHANGES-FROM-LION.md](docs/CHANGES-FROM-LION.md).
 
-The pinned Rain Anti-Cheat repository has **no declared license**. Its public
-availability alone does not grant redistribution rights. The root GPL text
-does not resolve rights in Rain-derived Java sources. See
+The pinned Rain Anti-Cheat repository has **no declared public license**. The
+RainInjectable owner reports permission to publish a modified version on GitHub,
+but the quoted grant does not specify GPL-compatible licensing of Rain-derived
+Java sources. The root GPL text does not resolve that issue. See
 [docs/LICENSE-NOTES.md](docs/LICENSE-NOTES.md) for this unresolved issue.
 
 Minecraft, Forge, MCP mappings, LWJGL, and SpecialSource are obtained or used
