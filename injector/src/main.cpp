@@ -1,4 +1,4 @@
-// RainInjector — Win32 entry point.
+// RainInjectable — Win32 entry point.
 
 #ifndef WIN32_LEAN_AND_MEAN
 #  define WIN32_LEAN_AND_MEAN
@@ -13,6 +13,7 @@
 #endif
 
 int APIENTRY wWinMain(HINSTANCE hInst, HINSTANCE, LPWSTR, int nCmdShow) {
-    SetProcessDPIAware();
+    if (!SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2))
+        SetProcessDPIAware();
     return rain::runGui(hInst, nCmdShow);
 }

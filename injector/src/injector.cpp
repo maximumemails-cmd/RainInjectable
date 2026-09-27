@@ -2,6 +2,7 @@
 #include "logger.h"
 
 #include <psapi.h>
+#include <algorithm>
 
 #pragma comment(lib, "psapi.lib")
 
@@ -13,7 +14,10 @@ static bool sameArchAsTarget(HANDLE hProc, std::string& err) {
         err = "IsWow64Process(target) failed: " + lastErrorString();
         return false;
     }
-    IsWow64Process(GetCurrentProcess(), &selfWow);
+    if (!IsWow64Process(GetCurrentProcess(), &selfWow)) {
+        err = "Could not determine injector architecture: " + lastErrorString();
+        return false;
+    }
 
     // On 64-bit Windows: !targetWow == 64-bit target, targetWow == 32-bit target.
     bool target64 = !targetWow;
@@ -114,34 +118,38 @@ InjectionResult Injector::inject(DWORD pid, const std::wstring& dllPath) {
     DWORD wait = WaitForSingleObject(thread, 30000);
     if (wait != WAIT_OBJECT_0) {
         r.systemError = GetLastError();
-        r.message = "Remote thread did not finish (status=" + std::to_string(wait) +
-                    "): " + lastErrorString(r.systemError);
+        r.message = wait == WAIT_TIMEOUT
+            ? "Loading native payload timed out after 30 seconds. The game may be unresponsive."
+            : "Waiting for native payload failed: " + lastErrorString(r.systemError);
         LOG_E("%s", r.message.c_str());
         CloseHandle(thread);
-        VirtualFreeEx(hProc, remoteMem, 0, MEM_RELEASE);
+        // A timed-out remote thread may still read this path; freeing it here
+        // would create a use-after-free inside the target process.
+        if (wait != WAIT_TIMEOUT) VirtualFreeEx(hProc, remoteMem, 0, MEM_RELEASE);
         CloseHandle(hProc);
         return r;
     }
 
     DWORD exitCode = 0;
-    GetExitCodeThread(thread, &exitCode);
-    CloseHandle(thread);
-    VirtualFreeEx(hProc, remoteMem, 0, MEM_RELEASE);
-
-    if (exitCode == 0) {
-        r.message = "LoadLibraryW returned NULL — the DLL failed to load. "
-                    "Common causes: dependency missing, wrong architecture, or jvm.dll not loaded yet.";
-        LOG_E("%s", r.message.c_str());
+    if (!GetExitCodeThread(thread, &exitCode)) {
+        r.systemError = GetLastError();
+        r.message = "Could not read native payload load result: " + lastErrorString(r.systemError);
+        CloseHandle(thread);
+        VirtualFreeEx(hProc, remoteMem, 0, MEM_RELEASE);
         CloseHandle(hProc);
         return r;
     }
+    CloseHandle(thread);
+    VirtualFreeEx(hProc, remoteMem, 0, MEM_RELEASE);
 
-    LOG_I("Remote LoadLibraryW returned handle 0x%llX in target.", (unsigned long long)exitCode);
-
-    // 8. Verify by enumerating loaded modules.
+    // GetExitCodeThread is only a DWORD, so an x64 HMODULE is truncated.
+    // The module list is the authoritative native-load check.
+    LOG_T("Remote LoadLibraryW thread exited with low DWORD 0x%08lX.", exitCode);
     bool present = isPayloadLoaded(pid, dllPath);
     if (!present) {
-        r.message = "Remote thread succeeded but module not found in target — partial failure.";
+        r.message = exitCode == 0
+            ? "Loading native payload failed. Check that the DLL is intact and its dependencies are available."
+            : "The native load returned, but the payload is absent from the target module list.";
         LOG_W("%s", r.message.c_str());
         CloseHandle(hProc);
         return r;
@@ -160,7 +168,7 @@ bool Injector::isPayloadLoaded(DWORD pid, const std::wstring& dllPath) {
     HMODULE mods[1024]; DWORD needed = 0;
     bool found = false;
     if (EnumProcessModulesEx(h, mods, sizeof(mods), &needed, LIST_MODULES_ALL)) {
-        DWORD count = needed / sizeof(HMODULE);
+        DWORD count = (std::min)(needed / (DWORD)sizeof(HMODULE), DWORD(1024));
         for (DWORD i = 0; i < count; ++i) {
             wchar_t fn[MAX_PATH] = {};
             if (GetModuleFileNameExW(h, mods[i], fn, MAX_PATH)) {
@@ -178,7 +186,7 @@ bool isModuleLoaded(DWORD pid, const std::wstring& moduleBaseName) {
     HMODULE mods[1024]; DWORD needed = 0;
     bool found = false;
     if (EnumProcessModulesEx(h, mods, sizeof(mods), &needed, LIST_MODULES_ALL)) {
-        DWORD count = needed / sizeof(HMODULE);
+        DWORD count = (std::min)(needed / (DWORD)sizeof(HMODULE), DWORD(1024));
         for (DWORD i = 0; i < count; ++i) {
             wchar_t name[MAX_PATH] = {};
             if (GetModuleBaseNameW(h, mods[i], name, MAX_PATH)) {

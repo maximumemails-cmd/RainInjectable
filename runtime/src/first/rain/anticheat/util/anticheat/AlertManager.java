@@ -13,9 +13,8 @@ import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.EnumChatFormatting;
 
 /**
- * Central sink for check flags. The first flag marks a player and emits one
- * chat/flash alert. Later failures are intentionally silent; the Tab-list
- * marker becomes the reminder.
+ * Alert history is separate from active detector state. Repeated failures are
+ * logged for diagnostics while chat and flash remain quiet for marked players.
  */
 public final class AlertManager {
    public enum CheckType {
@@ -51,6 +50,8 @@ public final class AlertManager {
    }
 
    private static final Map<UUID, MarkedPlayer> markedPlayers = new HashMap<UUID, MarkedPlayer>();
+   private static final long REPEAT_LOG_TICKS = 200L;
+   private static final Map<UUID, Long> lastRepeatLog = new HashMap<UUID, Long>();
 
    private AlertManager() {
    }
@@ -70,6 +71,13 @@ public final class AlertManager {
 
       UUID uuid = player.func_110124_au();
       if (markedPlayers.containsKey(uuid)) {
+         if (!first.rain.anticheat.config.cfg.v.debugMessages) return;
+         long tick = mc.field_71441_e.func_82737_E();
+         Long last = lastRepeatLog.get(uuid);
+         if (last == null || tick - last >= REPEAT_LOG_TICKS) {
+            lastRepeatLog.put(uuid, tick);
+            System.out.println("[Rain] repeat detection " + player.func_70005_c_() + " " + check.displayName() + " VL=" + vl);
+         }
          return;
       }
 
@@ -98,16 +106,18 @@ public final class AlertManager {
    /** Drop all marked players. Call on world change / disconnect. */
    public static void clear() {
       markedPlayers.clear();
+      lastRepeatLog.clear();
    }
 
    public static void forgetPlayer(UUID uuid) {
       if (uuid != null) {
          markedPlayers.remove(uuid);
+         lastRepeatLog.remove(uuid);
       }
    }
 
    public static void retainPlayers(Set<UUID> playerIds) {
-      // Marked players intentionally survive until world unload, even if they
-      // temporarily leave tab or stop being checkable.
+      markedPlayers.keySet().retainAll(playerIds);
+      lastRepeatLog.keySet().retainAll(playerIds);
    }
 }

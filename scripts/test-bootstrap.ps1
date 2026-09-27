@@ -12,8 +12,8 @@ if (-not $jdk) { throw 'JDK 8 not found (set RAIN_JDK8)' }
 $javac = Join-Path $jdk 'bin\javac.exe'
 $java  = Join-Path $jdk 'bin\java.exe'
 
-$jar = Join-Path $root 'dist\rain-runtime.jar'
-if (-not (Test-Path $jar)) { $jar = Join-Path $root 'runtime\build\rain-runtime.jar' }
+$jar = Join-Path $root 'runtime\build\rain-runtime.jar'
+if (-not (Test-Path $jar)) { $jar = Join-Path $root 'dist\rain-runtime.jar' }
 if (-not (Test-Path $jar)) { throw 'rain-runtime.jar not built - run scripts\build.ps1 first' }
 
 $libs = Join-Path $root 'runtime\libs'
@@ -23,24 +23,35 @@ foreach ($l in $libJars) { if (-not (Test-Path $l)) { throw "missing $l - run ru
 $h = Join-Path $root 'tests\bootstrap-harness'
 $outFakes = Join-Path $root 'build\harness\fakes'
 $outHarn  = Join-Path $root 'build\harness\harness'
-New-Item -ItemType Directory -Force -Path $outFakes, $outHarn | Out-Null
+$outCore  = Join-Path $root 'build\harness\core'
+New-Item -ItemType Directory -Force -Path $outFakes, $outHarn, $outCore | Out-Null
 
 & $javac -source 1.8 -target 1.8 -Xlint:-options -d $outFakes (Get-ChildItem (Join-Path $h 'fakes') -Recurse -Filter *.java | ForEach-Object FullName)
 if ($LASTEXITCODE -ne 0) { throw 'javac fakes failed' }
 & $javac -source 1.8 -target 1.8 -Xlint:-options -d $outHarn (Join-Path $h 'harness\Harness.java')
 if ($LASTEXITCODE -ne 0) { throw 'javac harness failed' }
+& $javac -source 1.8 -target 1.8 -Xlint:-options -d $outCore (Join-Path $h 'core\first\rain\anticheat\RainCore.java')
+if ($LASTEXITCODE -ne 0) { throw 'javac synthetic core failed' }
 
 $logDir = Split-Path -Parent $jar
 $log = Join-Path $logDir 'rain-bootstrap.log'
 if (Test-Path $log) { Remove-Item $log -Force }
 
 Write-Host '== mode: system (Launch on system classpath) =='
-& $java -cp "$outHarn;$outFakes" Harness system $jar $outFakes @libJars
+& $java -cp "$outHarn;$outFakes" Harness system $jar $outFakes $outCore @libJars
 if ($LASTEXITCODE -ne 0) { throw 'harness FAILED (system mode)' }
 
 Write-Host '== mode: wrapper (Launch only in a thread context classloader) =='
-& $java -cp "$outHarn" Harness wrapper $jar $outFakes @libJars
+& $java -cp "$outHarn" Harness wrapper $jar $outFakes $outCore @libJars
 if ($LASTEXITCODE -ne 0) { throw 'harness FAILED (wrapper mode)' }
+
+Write-Host '== mode: runtime path containing spaces and Unicode =='
+& $java -cp "$outHarn;$outFakes" Harness path $jar $outFakes $outCore @libJars
+if ($LASTEXITCODE -ne 0) { throw 'harness FAILED (path mode)' }
+
+Write-Host '== mode: failed startup must not report success =='
+& $java '-Drain.harness.fail=true' -cp "$outHarn;$outFakes" Harness failure $jar $outFakes $outCore @libJars
+if ($LASTEXITCODE -ne 0) { throw 'harness FAILED (failure mode)' }
 
 Write-Host ''
 Write-Host "rain-bootstrap.log written by the harness runs:"

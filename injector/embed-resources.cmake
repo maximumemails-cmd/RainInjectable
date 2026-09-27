@@ -1,0 +1,7 @@
+if(NOT EXISTS "${PAYLOAD_DLL}" OR NOT EXISTS "${RUNTIME_JAR}" OR NOT EXISTS "${BADLION_JAR}")
+    message(FATAL_ERROR "Payload DLL or runtime JAR is missing")
+endif()
+file(TO_CMAKE_PATH "${PAYLOAD_DLL}" payload_path)
+file(TO_CMAKE_PATH "${RUNTIME_JAR}" runtime_path)
+file(TO_CMAKE_PATH "${BADLION_JAR}" badlion_path)
+file(WRITE "${OUTPUT_RC}" "101 RCDATA \"${payload_path}\"\n102 RCDATA \"${runtime_path}\"\n103 RCDATA \"${badlion_path}\"\n")

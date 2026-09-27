@@ -6,6 +6,7 @@ import first.rain.anticheat.util.RenderUtil;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.client.audio.PositionedSoundRecord;
+import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.util.ResourceLocation;
 
@@ -29,6 +30,7 @@ public class ClickGui extends GuiScreen {
    private static int activeTab = TAB_ALERTS;
 
    private final List<ModuleCard> alertCards = new ArrayList<ModuleCard>();
+   private final boolean badlion = "badlion".equals(RainCore.startMode());
    private final FlashSettingsCard flashCard;
    private final NametagSettingsCard nametagCard;
    private final ModuleCard debugCard;
@@ -54,6 +56,7 @@ public class ClickGui extends GuiScreen {
       this.nametagCard = new NametagSettingsCard(CARD_W * 3 + GAP * 2, NAMETAG_CARD_HEIGHT);
       this.debugCard = new ModuleCard("Debug Messages", "Verbose check output in chat.",
          () -> cfg.v.debugMessages, (v) -> cfg.v.debugMessages = v, CARD_W, CARD_H);
+      if (this.badlion) this.alertCards.add(this.debugCard);
 
       this.panelWidth = PADDING * 2 + 3 * CARD_W + 2 * GAP;
       this.panelHeight = TITLE_BAR_HEIGHT + TAB_BAR_HEIGHT + PADDING + CONTENT_HEIGHT + PADDING;
@@ -88,7 +91,7 @@ public class ClickGui extends GuiScreen {
          this.tabAnim = tabTarget;
       }
 
-      func_73734_a(0, 0, this.field_146294_l, this.field_146295_m, 0x88000000);
+      Gui.func_73734_a(0, 0, this.field_146294_l, this.field_146295_m, 0x88000000);
       RenderUtil.drawRoundedShadow(panelX, panelY, this.panelWidth, this.panelHeight, 7.0F);
       RenderUtil.drawRoundedRect(panelX, panelY, this.panelWidth, this.panelHeight, 7.0F, 0xFA0C0C0C);
       RenderUtil.drawRoundedOutline(panelX, panelY, this.panelWidth, this.panelHeight, 7.0F, 1.0F, 0x46FFFFFF);
@@ -101,13 +104,18 @@ public class ClickGui extends GuiScreen {
       String hint = "drag";
       this.field_146289_q.func_78276_b(hint, panelX + this.panelWidth - PADDING - this.field_146289_q.func_78256_a(hint), titleTextY, 0xFF5A5A5A);
 
-      this.drawTabs(mouseX, mouseY);
+      if (this.badlion) {
+         this.field_146289_q.func_78276_b("Detectors", panelX + PADDING,
+            panelY + TITLE_BAR_HEIGHT + (TAB_BAR_HEIGHT - 8) / 2, 0xFFFFFFFF);
+      } else {
+         this.drawTabs(mouseX, mouseY);
+      }
 
-      float alertsAlpha = this.pageAlpha(TAB_ALERTS);
-      float notifAlpha = this.pageAlpha(TAB_NOTIFICATIONS);
-      float nametagAlpha = this.pageAlpha(TAB_NAMETAGS);
+      float alertsAlpha = this.badlion ? 1.0F : this.pageAlpha(TAB_ALERTS);
+      float notifAlpha = this.badlion ? 0.0F : this.pageAlpha(TAB_NOTIFICATIONS);
+      float nametagAlpha = this.badlion ? 0.0F : this.pageAlpha(TAB_NAMETAGS);
       int contentY = panelY + TITLE_BAR_HEIGHT + TAB_BAR_HEIGHT + PADDING;
-      int alertsMouseX = activeTab == TAB_ALERTS ? mouseX : -9999;
+      int alertsMouseX = this.badlion || activeTab == TAB_ALERTS ? mouseX : -9999;
       int notifMouseX = activeTab == TAB_NOTIFICATIONS ? mouseX : -9999;
       int nametagMouseX = activeTab == TAB_NAMETAGS ? mouseX : -9999;
 
@@ -147,7 +155,7 @@ public class ClickGui extends GuiScreen {
       this.field_146289_q.func_78276_b("Nametags", tabs[4], tabTextY, nametagColor);
 
       int lineY = panelY + TITLE_BAR_HEIGHT + TAB_BAR_HEIGHT - 2;
-      func_73734_a(panelX + PADDING, lineY, panelX + this.panelWidth - PADDING, lineY + 1, 0x1EFFFFFF);
+      Gui.func_73734_a(panelX + PADDING, lineY, panelX + this.panelWidth - PADDING, lineY + 1, 0x1EFFFFFF);
       int fromTab = Math.max(0, Math.min(TAB_NAMETAGS, (int)Math.floor(this.tabAnim)));
       int toTab = Math.max(0, Math.min(TAB_NAMETAGS, fromTab + 1));
       float t = this.tabAnim - (float)fromTab;
@@ -205,21 +213,23 @@ public class ClickGui extends GuiScreen {
          return;
       }
 
-      int[] tabs = this.tabLayout();
-      if (this.isOverTab(mouseX, mouseY, tabs[0], tabs[1])) {
-         this.setTab(TAB_ALERTS);
-         return;
-      }
-      if (this.isOverTab(mouseX, mouseY, tabs[2], tabs[3])) {
-         this.setTab(TAB_NOTIFICATIONS);
-         return;
-      }
-      if (this.isOverTab(mouseX, mouseY, tabs[4], tabs[5])) {
-         this.setTab(TAB_NAMETAGS);
-         return;
+      if (!this.badlion) {
+         int[] tabs = this.tabLayout();
+         if (this.isOverTab(mouseX, mouseY, tabs[0], tabs[1])) {
+            this.setTab(TAB_ALERTS);
+            return;
+         }
+         if (this.isOverTab(mouseX, mouseY, tabs[2], tabs[3])) {
+            this.setTab(TAB_NOTIFICATIONS);
+            return;
+         }
+         if (this.isOverTab(mouseX, mouseY, tabs[4], tabs[5])) {
+            this.setTab(TAB_NAMETAGS);
+            return;
+         }
       }
 
-      if (activeTab == TAB_ALERTS) {
+      if (this.badlion || activeTab == TAB_ALERTS) {
          for (ModuleCard card : this.alertCards) {
             if (card.mouseClicked(mouseX, mouseY, mouseButton)) {
                return;
@@ -238,9 +248,9 @@ public class ClickGui extends GuiScreen {
    @Override
    protected void func_146273_a(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
       super.func_146273_a(mouseX, mouseY, clickedMouseButton, timeSinceLastClick);
-      if (activeTab == TAB_NOTIFICATIONS) {
+      if (!this.badlion && activeTab == TAB_NOTIFICATIONS) {
          this.flashCard.mouseDragged(mouseX, mouseY);
-      } else if (activeTab == TAB_NAMETAGS) {
+      } else if (!this.badlion && activeTab == TAB_NAMETAGS) {
          this.nametagCard.mouseDragged(mouseX, mouseY);
       }
    }
@@ -248,8 +258,10 @@ public class ClickGui extends GuiScreen {
    @Override
    protected void func_146286_b(int mouseX, int mouseY, int state) {
       this.dragging = false;
-      this.flashCard.mouseReleased();
-      this.nametagCard.mouseReleased();
+      if (!this.badlion) {
+         this.flashCard.mouseReleased();
+         this.nametagCard.mouseReleased();
+      }
       super.func_146286_b(mouseX, mouseY, state);
    }
 
@@ -270,8 +282,10 @@ public class ClickGui extends GuiScreen {
    @Override
    public void func_146281_b() {
       this.dragging = false;
-      this.flashCard.mouseReleased();
-      this.nametagCard.mouseReleased();
+      if (!this.badlion) {
+         this.flashCard.mouseReleased();
+         this.nametagCard.mouseReleased();
+      }
       RainCore.saveKeybinds();
    }
 

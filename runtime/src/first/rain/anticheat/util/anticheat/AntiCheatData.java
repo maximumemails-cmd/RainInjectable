@@ -8,7 +8,6 @@ import first.rain.anticheat.util.anticheat.checks.KillauraCheck;
 import first.rain.anticheat.util.anticheat.checks.LegitScaffoldCheck;
 
 public class AntiCheatData {
-   public PlayerData playerData = new PlayerData();
    public AutoBlockCheck autoBlockCheck = new AutoBlockCheck();
    public LegitScaffoldCheck legitScaffoldCheck = new LegitScaffoldCheck();
    public KillauraCheck killauraCheck = new KillauraCheck();
@@ -18,22 +17,10 @@ public class AntiCheatData {
          this.forgetPlayer(player);
          return;
       }
-      this.playerData.update(player);
+      // Combat correlation must be updated before checks that consume it.
+      this.killauraCheck.anticheatCheck(player);
       this.autoBlockCheck.anticheatCheck(player);
       this.legitScaffoldCheck.anticheatCheck(player);
-      this.killauraCheck.anticheatCheck(player);
-   }
-
-   public boolean failedAutoBlock() {
-      return this.autoBlockCheck.failedAutoBlock();
-   }
-
-   public boolean failedLegitScaffold() {
-      return this.legitScaffoldCheck.failedLegitScaffold();
-   }
-
-   public boolean failedKillaura() {
-      return this.killauraCheck.failedKillaura();
    }
 
    /** Keep only currently eligible players in per-player anticheat state. */
@@ -41,7 +28,7 @@ public class AntiCheatData {
       this.autoBlockCheck.retainPlayers(checkablePlayerIds);
       this.legitScaffoldCheck.retainPlayers(checkablePlayerIds);
       this.killauraCheck.retainPlayers(checkablePlayerIds, realPlayerIds);
-      AlertManager.retainPlayers(checkablePlayerIds);
+      AlertManager.retainPlayers(realPlayerIds);
    }
 
    /** Drop all state for a player that is no longer eligible. */
@@ -61,7 +48,6 @@ public class AntiCheatData {
       this.autoBlockCheck.reset();
       this.legitScaffoldCheck.reset();
       this.killauraCheck.reset();
-      LegitScaffoldCheck.clear();
       AlertManager.clear();
    }
 }

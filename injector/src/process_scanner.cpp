@@ -6,6 +6,7 @@
 #include <winternl.h>   // declares NtQueryInformationProcess, PEB, PROCESSINFOCLASS, etc.
 #include <algorithm>
 #include <cwctype>
+#include <unordered_map>
 
 #pragma comment(lib, "psapi.lib")
 #pragma comment(lib, "ntdll.lib")
@@ -24,7 +25,8 @@ bool icontains(const std::wstring& hay, const std::wstring& needle) {
 }
 
 bool isJvmHostProcess(const std::wstring& exe) {
-    return icontains(exe, L"javaw.exe") || icontains(exe, L"java.exe");
+    return _wcsicmp(exe.c_str(), L"javaw.exe") == 0 ||
+           _wcsicmp(exe.c_str(), L"java.exe") == 0;
 }
 
 struct EnumWindowCtx {
@@ -72,23 +74,7 @@ std::wstring ProcessScanner::readCommandLine(HANDLE hProc) {
     return out;
 }
 
-LauncherKind ProcessScanner::classify(const McProcess& p, const std::wstring& cmdLine) {
-    // Forge: launchwrapper main class plus a Forge marker on the classpath.
-    if (icontains(cmdLine, L"net.minecraft.launchwrapper.Launch") &&
-        (icontains(cmdLine, L"fmltweaker") ||
-         icontains(cmdLine, L"minecraftforge") ||
-         icontains(cmdLine, L"forge")))
-        return LauncherKind::Forge;
-    if (icontains(cmdLine, L"net.fabricmc") || icontains(cmdLine, L"fabric-loader"))
-        return LauncherKind::Fabric;
-    if (icontains(cmdLine, L"optifine"))
-        return LauncherKind::OptiFine;
-    if (icontains(cmdLine, L"net.minecraft") || icontains(p.windowTitle, L"Minecraft"))
-        return LauncherKind::Vanilla;
-    return LauncherKind::Unknown;
-}
-
-bool ProcessScanner::inspectProcess(DWORD pid, McProcess& out) {
+bool ProcessScanner::inspectProcess(DWORD pid, DWORD parentPid, const std::wstring& parentName, McProcess& out) {
     HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | PROCESS_VM_READ, FALSE, pid);
     if (!h) {
         // Try a weaker handle for at least the image name.
@@ -103,46 +89,53 @@ bool ProcessScanner::inspectProcess(DWORD pid, McProcess& out) {
         return false;
     }
     out.pid = pid;
+    out.parentPid = parentPid;
+    out.parentExeName = parentName;
     out.exePath = imageName;
     auto pos = out.exePath.find_last_of(L"\\/");
     out.exeName = (pos == std::wstring::npos) ? out.exePath : out.exePath.substr(pos + 1);
 
-    if (!isJvmHostProcess(out.exeName)) {
-        CloseHandle(h);
-        return false;
-    }
-
     BOOL isWow64 = FALSE;
-    IsWow64Process(h, &isWow64);
-    out.x64 = !isWow64;
+    out.architectureKnown = IsWow64Process(h, &isWow64) != 0;
+    out.architectureError = out.architectureKnown ? 0 : GetLastError();
+    out.x64 = out.architectureKnown && !isWow64;
 
     // Inspect loaded modules to detect jvm.dll / lwjgl.
     HMODULE mods[1024]; DWORD needed = 0;
     if (EnumProcessModulesEx(h, mods, sizeof(mods), &needed, LIST_MODULES_ALL)) {
-        DWORD count = needed / sizeof(HMODULE);
+        DWORD count = std::min<DWORD>(needed / sizeof(HMODULE), 1024);
         for (DWORD i = 0; i < count; ++i) {
             wchar_t modName[MAX_PATH] = {};
             if (GetModuleBaseNameW(h, mods[i], modName, MAX_PATH)) {
                 std::wstring m = modName;
-                if (icontains(m, L"jvm.dll")) out.hasJvm = true;
+                if (icontains(m, L"jvm.dll")) {
+                    out.hasJvm = true;
+                    wchar_t path[MAX_PATH] = {};
+                    if (GetModuleFileNameExW(h, mods[i], path, MAX_PATH)) out.jvmPath = path;
+                }
                 if (icontains(m, L"lwjgl"))   out.hasLwjgl = true;
             }
         }
-    }
+    } else out.moduleError = GetLastError();
 
     out.windowTitle = findWindowTitle(pid);
-    std::wstring cmd = readCommandLine(h);
-    out.launcher = classify(out, cmd);
+    out.commandLine = readCommandLine(h);
 
     CloseHandle(h);
 
     // Only return processes that look Minecraft-related.
     bool looksLikeMc =
-        out.hasJvm &&
-        (out.hasLwjgl ||
-         out.launcher != LauncherKind::Unknown ||
-         icontains(out.windowTitle, L"Minecraft") ||
-         icontains(cmd, L"minecraft"));
+        (out.hasJvm || isJvmHostProcess(out.exeName)) &&
+        (out.hasLwjgl || icontains(out.windowTitle, L"Minecraft") ||
+         icontains(out.windowTitle, L"Lunar Client") ||
+         icontains(out.windowTitle, L"Badlion Client") ||
+         icontains(out.windowTitle, L"Feather") ||
+         icontains(out.commandLine, L"net.minecraft") ||
+         icontains(out.commandLine, L"lunarclient") ||
+         icontains(out.commandLine, L"badlion") ||
+         icontains(out.commandLine, L"fmltweaker") ||
+         icontains(out.commandLine, L"minecraftforge") ||
+         icontains(out.commandLine, L"fabric-loader"));
     return looksLikeMc;
 }
 
@@ -153,11 +146,19 @@ std::vector<McProcess> ProcessScanner::scan() {
         LOG_E("CreateToolhelp32Snapshot failed: %s", lastErrorString().c_str());
         return result;
     }
+    std::unordered_map<DWORD, std::wstring> names;
     PROCESSENTRY32W pe{ sizeof(pe) };
+    if (Process32FirstW(snap, &pe)) {
+        do { names.emplace(pe.th32ProcessID, pe.szExeFile); }
+        while (Process32NextW(snap, &pe));
+    }
+    pe.dwSize = sizeof(pe);
     if (Process32FirstW(snap, &pe)) {
         do {
             McProcess mc;
-            if (inspectProcess(pe.th32ProcessID, mc)) {
+            auto parent = names.find(pe.th32ParentProcessID);
+            if (inspectProcess(pe.th32ProcessID, pe.th32ParentProcessID,
+                               parent == names.end() ? L"" : parent->second, mc)) {
                 result.push_back(std::move(mc));
             }
         } while (Process32NextW(snap, &pe));
@@ -165,16 +166,6 @@ std::vector<McProcess> ProcessScanner::scan() {
     CloseHandle(snap);
     LOG_I("Process scan found %zu candidate Minecraft process(es).", result.size());
     return result;
-}
-
-const char* ProcessScanner::launcherName(LauncherKind k) const {
-    switch (k) {
-        case LauncherKind::Vanilla:  return "Vanilla";
-        case LauncherKind::Forge:    return "Forge";
-        case LauncherKind::Fabric:   return "Fabric";
-        case LauncherKind::OptiFine: return "OptiFine";
-        default:                     return "Unknown";
-    }
 }
 
 } // namespace rain

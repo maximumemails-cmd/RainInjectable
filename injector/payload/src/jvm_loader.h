@@ -14,6 +14,8 @@ namespace rain::payload {
 bool bootstrap(const std::wstring& jarPath,
                const std::wstring& dllPath,
                std::string& error);
+void payloadStatus(const char* stage, const std::string& message,
+                   const char* code = "", const char* nextAction = "");
 
 // Where the payload DLL was loaded from (used for sibling log files).
 std::wstring payloadDir();

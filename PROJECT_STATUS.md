@@ -4,9 +4,9 @@ Living status file. Updated after every phase. Read this first when resuming.
 
 ## Goal
 
-Rebuild Rain Anticheat (a defensive, client-side Forge 1.8.9 mod that flags
-suspected cheaters) as an injectable runtime, using the native loader
-technology from LionInjectable. Forge 1.8.9 only. Windows x64 only.
+Rebuild Rain Anticheat (a defensive, client-side Minecraft 1.8.9 detector that
+flags suspected cheaters) as an injectable runtime, using the native loader
+technology from LionInjectable. Forge and Badlion Client 1.8.9; Windows x64.
 
 Rain is a **defensive** tool: it observes other players and alerts the local
 user. It sends nothing to the server, alters no gameplay, and grants no
@@ -24,7 +24,7 @@ advantage. Nothing in this project bypasses or hides from any anti-cheat.
 ## Layout
 
 ```
-injector/            C++ (CMake) — RainInjector.exe + rain-payload.dll
+injector/            C++ (CMake) — RainInjectable.exe + rain-payload.dll
   src/               injector exe (Win32 GUI, process scanner, LoadLibrary injector)
   payload/src/       payload DLL (JNI bootstrap only)
 runtime/             Java 8 — rain-runtime.jar (Rain core + bootstrap)
@@ -33,7 +33,8 @@ runtime/             Java 8 — rain-runtime.jar (Rain core + bootstrap)
   setup.ps1          downloads compile-time deps into runtime/libs (git-ignored)
 scripts/             check-environment.ps1, build.ps1, fetch-upstream.ps1
 docs/                architecture reviews, license notes, testing plan
-dist/                staged release (git-ignored): RainInjector.exe, rain-payload.dll, rain-runtime.jar
+dist/                separate build artifacts (git-ignored)
+releases/            single-file RainInjectable.exe and ZIP (git-ignored)
 ```
 
 ## Toolchain audit (2026-09-26)
@@ -63,27 +64,50 @@ dist/                staged release (git-ignored): RainInjector.exe, rain-payloa
 - [x] Phase 5 — Payload loads `rain-runtime.jar` via `RainBootstrap.start(jar, dll)` (`7c01e65`)
 - [x] Phase 6 — `scripts/build.ps1`, `scripts/check-environment.ps1`, `dist/` staging (`7c01e65`)
 - [x] Phase 7 — Static verification, bootstrap harness, docs (`89f2ea8`, `3413cf9`, this commit)
-- [ ] Phase 8 — Live in-game test — **requires explicit user approval — NOT started**
+- [x] Single-file build — DLL and Forge/Badlion JARs embedded in `releases/1.1.0-injectable/RainInjectable.exe`; extracted to a versioned Local AppData folder on injection
+- [x] Live Badlion test — native load, JNI bootstrap, in-world detector ticks and Right Shift GUI opens verified
+- [ ] Live Forge test — still pending
+- [x] Injection completion now waits for the Java bootstrap result; compatibility decisions and Windows utility UI rebuilt
 
 ## Blockers / open items
 
-- No Forge 1.8.9 profile installed locally → live test cannot run until one is
-  installed (see docs/TESTING.md).
+- No Forge 1.8.9 profile installed locally; Forge live injection was not tested.
+- Badlion detector checks run live and use local chat for alerts. A real alert
+  was not triggered in this test. The GUI opens from Right Shift; Flash and
+  Nametag overlays still need a Badlion render hook.
 - Rain upstream has **no LICENSE file** — see docs/LICENSE-NOTES.md.
-- Visual/GUI changes (master card, title ON/OFF state) are compiled but never
-  rendered; unverified until the live test.
+- Public GitHub release is pending a repository remote, valid GitHub CLI
+  authentication, and confirmation of Rain redistribution rights.
+- The Badlion GUI opened from Right Shift and closed between opens. The master
+  control changed and persisted across a close and reopen. The final build
+  hides the unavailable overlay controls.
 
-## Last verified state (2026-09-26)
+## Last verified state (2026-09-27)
 
-- `scripts/check-environment.ps1` → exit 0.
-- `scripts/build.ps1` → runtime jar + native Release build, 0 warnings.
-- `scripts/test-bootstrap.ps1` → `HARNESS OK (system)`, `HARNESS OK (wrapper)`
-  (fake launchwrapper; exercises RainBootstrap classloader discovery, addURL,
-  idempotency — does not exercise Minecraft/Forge itself).
-- `dist/`: `RainInjector.exe` 752640 B, `rain-payload.dll` 684032 B,
-  `rain-runtime.jar` 71490 B (29 classes), `LICENSE`, `LICENSE-NOTES.md`.
-- dumpbin: both native binaries x64; payload has no exports and imports only
-  KERNEL32 (static CRT).
-- javap: `RainBootstrap` references only `java.*`; `@Mod` retained on `Rain`
-  so the jar also works from a `mods/` folder.
-- Not verified: anything in a running game (injection, Forge hook, GUI, alerts).
+- The supplied Lion binaries match the pinned upstream build byte-for-byte.
+  Rain includes their native LoadLibrary/JNI path and now has a separate
+  Notch-mapped Badlion detector adapter. The UI enforces its compatibility
+  decision, clears stale bootstrap status, waits through Java startup, and no
+  longer claims to eject Rain. Lunar remains unsupported.
+
+- Version 1.1.0-injectable implementation: parent-aware Minecraft JVM discovery,
+  typed compatibility stages, redacted console diagnostics, four-line payload
+  status, and a rebuilt compact Win32 interface. A clean MSVC x64 Release build,
+  native compatibility and DPI layout tests, Java bootstrap harness, detector
+  checks, embedded resource verification, and `git diff --check` passed.
+- Live Badlion check: Java 17.0.13 x64, Minecraft 1.8.9, no Forge, Notch class
+  names. Native DLL and JNI loaded. In restarted PID 27452, Rain's status was
+  `Complete`, game-thread heartbeats and processed detector ticks increased,
+  51 eligible players were observed, `lastError` was empty, and the game stayed
+  responsive. This does not prove alert accuracy against cheaters.
+
+- Clean MSVC x64 Release build of the native EXE/DLL and JDK 8 runtime JAR:
+  `scripts/build.ps1` passed with no compiler warnings.
+- Native compatibility CTest, synthetic system/wrapper/Unicode/failure bootstrap
+  harness, 345 detector assertions, detector static checks, `git diff --check`,
+  and `scripts/verify-release.ps1` passed.
+- `releases/` contains the single-file EXE, ZIP bundle and release notes.
+  Embedded DLL and both JARs match the build outputs byte-for-byte; version
+  markers match.
+- Forge event delivery, in-game Forge Rain GUI and visual desktop rendering
+  have not been verified.

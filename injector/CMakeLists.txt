@@ -9,7 +9,7 @@ set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS OFF)
 
 if(NOT WIN32)
-    message(FATAL_ERROR "RainInjector targets Windows only.")
+    message(FATAL_ERROR "RainInjectable targets Windows only.")
 endif()
 
 # Force x64 to match modern Minecraft installs (Win64 launchers ship 64-bit JVMs).
@@ -18,22 +18,51 @@ if(NOT CMAKE_GENERATOR_PLATFORM)
 endif()
 
 # ---- Injector executable -------------------------------------------------
-add_executable(RainInjector WIN32
+add_executable(RainInjectable WIN32
     src/main.cpp
     src/gui.cpp
+    src/compatibility.cpp
+    src/embedded_payload.cpp
     src/injector.cpp
     src/logger.cpp
     src/process_scanner.cpp
+    src/status_protocol.cpp
 )
-target_include_directories(RainInjector PRIVATE src)
-target_compile_definitions(RainInjector PRIVATE
+target_include_directories(RainInjectable PRIVATE src)
+target_compile_definitions(RainInjectable PRIVATE
     UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
-target_link_libraries(RainInjector PRIVATE
+target_link_libraries(RainInjectable PRIVATE
     user32 gdi32 comctl32 shell32 advapi32 psapi dwmapi gdiplus)
 
+enable_testing()
+add_executable(compatibility_tests
+    ../tests/compatibility_tests.cpp
+    src/compatibility.cpp
+    src/status_protocol.cpp)
+target_include_directories(compatibility_tests PRIVATE src)
+target_compile_definitions(compatibility_tests PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
+add_test(NAME compatibility COMMAND compatibility_tests)
+add_executable(ui_layout_tests ../tests/ui_layout_tests.cpp)
+target_include_directories(ui_layout_tests PRIVATE src)
+target_compile_definitions(ui_layout_tests PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
+add_test(NAME ui_layout COMMAND ui_layout_tests)
+add_executable(target_diagnostics
+    src/target_diagnostics.cpp
+    src/process_scanner.cpp
+    src/compatibility.cpp
+    src/injector.cpp
+    src/status_protocol.cpp
+    src/logger.cpp)
+target_include_directories(target_diagnostics PRIVATE src)
+target_compile_definitions(target_diagnostics PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
+target_link_libraries(target_diagnostics PRIVATE psapi shell32 user32)
 if(MSVC)
-    target_compile_options(RainInjector PRIVATE /W4 /permissive- /Zi /utf-8)
-    target_link_options   (RainInjector PRIVATE /DEBUG /SUBSYSTEM:WINDOWS)
+    target_compile_options(target_diagnostics PRIVATE /W4 /permissive- /utf-8)
+endif()
+
+if(MSVC)
+    target_compile_options(RainInjectable PRIVATE /W4 /permissive- /Zi /utf-8)
+    target_link_options   (RainInjectable PRIVATE /DEBUG /SUBSYSTEM:WINDOWS)
 endif()
 
 # ---- Payload DLL ---------------------------------------------------------
@@ -82,9 +111,29 @@ if(MSVC)
     target_link_options   (rain_payload PRIVATE /DEBUG)
 endif()
 
+if(NOT DEFINED RUNTIME_JAR OR NOT EXISTS "${RUNTIME_JAR}")
+    message(FATAL_ERROR "Pass -DRUNTIME_JAR=<built rain-runtime.jar> to embed the Java runtime.")
+endif()
+if(NOT DEFINED BADLION_JAR OR NOT EXISTS "${BADLION_JAR}")
+    message(FATAL_ERROR "Pass -DBADLION_JAR=<built rain-badlion.jar> to embed the Badlion runtime.")
+endif()
+add_custom_command(
+    OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/embedded_payload.rc"
+    COMMAND ${CMAKE_COMMAND}
+        "-DPAYLOAD_DLL=$<TARGET_FILE:rain_payload>"
+        "-DRUNTIME_JAR=${RUNTIME_JAR}"
+        "-DBADLION_JAR=${BADLION_JAR}"
+        "-DOUTPUT_RC=${CMAKE_CURRENT_BINARY_DIR}/embedded_payload.rc"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/embed-resources.cmake"
+    DEPENDS rain_payload "${RUNTIME_JAR}" "${BADLION_JAR}" "${CMAKE_CURRENT_SOURCE_DIR}/embed-resources.cmake"
+    VERBATIM
+)
+target_sources(RainInjectable PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/embedded_payload.rc")
+add_dependencies(RainInjectable rain_payload)
+
 # ---- Stage everything next to the exe ------------------------------------
-add_custom_command(TARGET RainInjector POST_BUILD
+add_custom_command(TARGET RainInjectable POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different
         "$<TARGET_FILE:rain_payload>"
-        "$<TARGET_FILE_DIR:RainInjector>/rain-payload.dll"
-    COMMENT "Copying rain-payload.dll next to RainInjector.exe")
+        "$<TARGET_FILE_DIR:RainInjectable>/rain-payload.dll"
+    COMMENT "Copying rain-payload.dll next to RainInjectable.exe")

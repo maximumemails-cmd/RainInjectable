@@ -4,13 +4,35 @@
 # Build output
 /build/
 /dist/
+/dist-*/
+/releases/
 /runtime/build/
 /runtime/libs/
 *.class
 *.log
+*.dmp
+*.dump
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+
+# Local credentials and personal configuration
+.env
+.env.*
+!.env.example
+*.p12
+*.pfx
+*.key
+*.pem
+*.jks
+*.keystore
+*credentials*.json
+*secrets*.json
 
 # IDE
 /.vs/
 /.idea/
+/.vscode/
 *.iml
-/.vscode/settings.json

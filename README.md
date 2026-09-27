@@ -1,16 +1,18 @@
 # RainInjectable
 
-Rain Anticheat (defensive, observation-only Forge 1.8.9 mod that flags suspected
-cheaters in local chat) rebuilt as an injectable runtime, using the native
-loader from LionInjectable V1.0.5. Windows x64 + Forge 1.8.9 only.
+Rain Anticheat (defensive, observation-only Minecraft 1.8.9 detector that flags
+suspected cheaters in local chat) rebuilt as an injectable runtime, using the
+native loader from LionInjectable V1.0.5. Windows x64; Forge 1.8.9 and Badlion
+Client 1.8.9 have separate Java runtimes.
 
 Rain observes other players and alerts the local user. It sends nothing to the
 server, changes no gameplay, and contains no anti-cheat evasion code.
+Use it only with games and environments where you have permission to do so.
 
 ## Layout
 
-- `injector/` — C++/CMake: `RainInjector.exe` (Win32 GUI + LoadLibrary injector) and `rain-payload.dll` (JNI bootstrap only)
-- `runtime/` — Java 8: `rain-runtime.jar` (Rain core + `RainBootstrap`); also loadable from a `mods/` folder
+- `injector/` — C++/CMake: `RainInjectable.exe` (Win32 GUI + LoadLibrary injector) and `rain-payload.dll` (JNI bootstrap only)
+- `runtime/` — Java 8: `rain-runtime.jar` (Forge core + bootstrap) and `rain-badlion.jar` (obfuscated 1.8.9 detector adapter)
 - `scripts/` — `check-environment.ps1`, `build.ps1`, `test-bootstrap.ps1`, `fetch-upstream.ps1`
 - `docs/` — architecture reviews, `CHANGES-FROM-LION.md`, `TESTING.md`, `LICENSE-NOTES.md`, `UPSTREAM.md`
 - `PROJECT_STATUS.md` — living status; read first when resuming
@@ -21,21 +23,48 @@ server, changes no gameplay, and contains no anti-cheat evasion code.
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-environment.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-bootstrap.ps1
+ctest --test-dir build/native -C Release --output-on-failure
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1
 ```
 
-Requires JDK 8, CMake, VS 2022 Build Tools (MSVC x64). Output is staged in `dist/`.
+Requires JDK 8, CMake, VS 2022 Build Tools (MSVC x64). The Badlion build
+downloads pinned Minecraft 1.8.9 mappings and SpecialSource into ignored
+`runtime/libs/`. The single-file
+build is `releases/1.1.0-injectable/RainInjectable.exe`, with a ZIP bundle beside it. The DLL and
+both JARs are embedded in the EXE; separate build artifacts in `dist/` are for
+inspection and testing.
 
 ## Usage
 
-Keep `RainInjector.exe`, `rain-payload.dll` and `rain-runtime.jar` in the same
-folder. Start Forge 1.8.9, reach the main menu, run the injector and pick the
-Minecraft process. Right Shift opens the Rain GUI (master enable/disable card,
-alert/flash/nametag settings). Config: `.minecraft\config\rain.properties`.
-Logs: `rain-payload.log`, `rain-bootstrap.log` beside the exe.
+Start Forge or Badlion Client with Minecraft 1.8.9, reach the main menu, run
+`releases/1.1.0-injectable/RainInjectable.exe`, and select the game process.
+Compatibility shows staged evidence and the exact unsupported reason for the
+selected target. Badlion initially shows **Needs verification** because the
+in-process adapter checks its game classes and scheduling. Lunar, Fabric,
+vanilla, other versions, and 32-bit Java are not offered for injection. The
+EXE extracts its embedded DLL and JARs into a
+versioned folder under `%LOCALAPPDATA%\RainInjectable`. The Logs page reports
+the actual bootstrap result. Right Shift opens Rain settings on Forge and on
+the Badlion 1.8.9 adapter. Badlion polls the configured GUI and master toggle
+keys on the game thread, runs detector checks, and reports alerts in local
+chat. The Badlion screen shows detector and debug controls. Flash and Nametag
+overlays still require a Badlion render hook.
+Config: `.minecraft\config\rain.properties`.
 
-See `docs/TESTING.md` before any live test.
+Live Badlion testing confirmed DLL loading, Java bootstrap, game-thread
+heartbeats, GUI class initialization, and detector ticks in a server with other players. Live Forge
+injection has not been tested; see `docs/TESTING.md`.
 
 ## License
 
 Loader code derives from LionInjectable (GPL-3.0, see `LICENSE`). Rain upstream
-has no license; this is a personal-use build — see `docs/LICENSE-NOTES.md`.
+has no declared license; the GPL text does not by itself license Rain-derived
+sources. Public redistribution requires clarification of the Rain copyright
+permission; see [license notes](docs/LICENSE-NOTES.md).
+
+## Credits and acknowledgements
+
+Rain Anti-Cheat supplied the detection foundation and LionInjectable supplied
+the native injector/JVM architecture. Their roles, original credits, research
+references, and AI-assisted development are documented in
+[CREDITS.md](CREDITS.md).

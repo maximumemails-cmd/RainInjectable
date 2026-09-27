@@ -4,6 +4,12 @@ Base: `6a04238f67902472ea2f69e6d683cdfb89aded9f`. Only `injector/src/*`,
 `injector/payload/src/dllmain.cpp`, `injector/payload/src/jvm_loader.*` and
 `injector/CMakeLists.txt` were taken. Everything else in Lion was dropped.
 
+The Badlion adapter added later is built from Rain detector sources. It uses
+the pinned Minecraft 1.8.9 MCP mappings and SpecialSource to remap SRG member
+references to Notch names, including inherited members. It schedules checks
+through Minecraft's own game-thread task queue. It does not copy Lion's
+client JAR, Forge shims, agent attach path, transformers or cheat modules.
+
 ## Removed (not vendored)
 
 - `injector/payload/src/agent_attach.{h,cpp}` — in-process `Agent_OnAttach` /

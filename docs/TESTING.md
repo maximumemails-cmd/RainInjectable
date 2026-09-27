@@ -1,72 +1,80 @@
-# Testing
+# Testing and compatibility evidence
 
-## Static verification (done, repeatable)
+Run the following after a clean build:
 
-| Check | Command | Result (2026-09-26) |
-|---|---|---|
-| Toolchain present | `scripts\check-environment.ps1` | all required OK; Forge profile + Feather flagged optional/missing |
-| Full build | `scripts\build.ps1` | `dist\RainInjector.exe` 267 KB, `dist\rain-payload.dll` ~200 KB, `dist\rain-runtime.jar` 71 KB; 0 warnings (`/W4`) |
-| Payload has no JNI exports / no `instrument.dll` | `dumpbin /exports /imports rain-payload.dll` | no exports; imports only `KERNEL32.dll` |
-| Both binaries x64 | `dumpbin /headers` | `8664 machine (x64)` twice |
-| Jar is Java 8 bytecode | class file major version | 52 |
-| `RainBootstrap` references only `java.*` | `javap -v` constant pool | confirmed |
-| JNI target signature | `javap -s` | `start(Ljava/lang/String;Ljava/lang/String;)V` |
-| `@Mod` retained (jar still works from `mods/`) | `javap -v first.rain.anticheat.Rain` | `Lnet/minecraftforge/fml/common/Mod;` present |
-| Bootstrap plumbing end-to-end (fake LaunchWrapper, real SRG MC/Forge jars) | `scripts\test-bootstrap.ps1` | `HARNESS OK (system)`, `HARNESS OK (wrapper)`; re-entry is a no-op |
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build.ps1
+ctest --test-dir build/native -C Release --output-on-failure
+build/native/Release/target_diagnostics.exe
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-bootstrap.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-detectors.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-detector-static.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1
+git diff --check
+```
 
-Not verifiable without a running game: keybind registration, event-bus
-delivery, GUI rendering, `addScheduledTask` hand-off, `mcDataDir` config path,
-and the actual detections. Those are the live test.
+The native compatibility test covers confirmed Forge 1.8.9, a starting JVM,
+32-bit Java, another Minecraft version, vanilla, Lunar, Badlion, Prism and
+Feather. The scanner discovers processes separately from the compatibility
+decision; candidate recognition alone does not imply Rain can run. It also checks
+launcher parent attribution, JVM architecture errors, stage results, payload
+status parsing, and credential redaction. The UI layout test checks action,
+detail, log and footer spacing at 100%, 125%, 150% and 200% DPI.
 
-## Live test plan (requires explicit approval — not yet run)
+`target_diagnostics.exe` prints stage evidence without command-line secrets.
+Its explicit `--inject PID --dll PATH` option runs the native injector for live
+diagnostics. On 2026-09-27 the Badlion child JVM was Java 17.0.13 x64 running
+Minecraft 1.8.9 without Forge. Rain's native DLL loaded successfully and JNI
+reached Java. The initial Forge bootstrap stopped because it found `ave` (the
+obfuscated Minecraft class) and no Forge event bus. The dedicated Badlion JAR
+was then compiled against Rain's detector sources, remapped from SRG to Notch
+names, and loaded without Lion cheat classes. In a restarted Badlion server
+session, PID 27452, the payload reported `Complete`; its local status file
+showed `inWorld=true`, 51 eligible players, increasing processed detector
+ticks and no runtime error. The JVM remained responsive. This proves the
+detector loop ran on that session; it does not establish alert accuracy against
+actual cheating. The JDK external Attach API remained disabled; Rain's native
+DLL/JNI path did not use it.
 
-Prerequisites
-1. A Forge 1.8.9 profile (Forge `11.15.1.2318`) in the vanilla launcher, **or**
-   Feather 1.8.9 (Forge-based). `check-environment.ps1` currently reports neither
-   installed. Prism/MultiMC also works (the injector will ask to confirm because
-   those launchers hide the main class from the command line).
-2. 64-bit Java 8 for the profile (the launcher default `jre-legacy` is fine).
-3. `dist\` staged by `scripts\build.ps1`.
-4. Windows Defender / AV: `CreateRemoteThread` tools are commonly flagged.
-   Expect a SmartScreen prompt for the unsigned exe; add an exclusion for
-   `dist\` if the payload gets quarantined. Do **not** disable AV globally.
+In a later live Badlion session, PID 27260, the new GUI build initialized its
+GUI classes, recorded two Right Shift opens with a close between them, and
+continued processing detector ticks with no reported runtime error.
 
-Procedure
-1. Start Minecraft with the Forge 1.8.9 profile; reach the main menu or join a
-   world/server (singleplayer or a private server — do not test on a public
-   server whose rules forbid client modifications).
-2. Run `dist\RainInjector.exe` (no admin needed if Minecraft runs as the same
-   user). Click **Refresh**; the `javaw.exe` row should show Launcher = `Forge`,
-   Arch = `x64`, JVM = `yes`, LWJGL = `yes`.
-3. Select the row, click **INJECT**. Expected: "Injection complete" dialog
-   within a few seconds.
-4. In-game expected within ~1 s: chat line `Rain 1.0.0-injectable injected. Press
-   the GUI key (default RSHIFT) to open settings.`
-5. Press **RSHIFT**: the Rain GUI opens with title `Rain ON`, Alerts tab shows
-   the `Rain (master)` card plus AutoBlock / LegitScaffold / Killaura.
-6. Toggle `Rain (master)` off → title shows `OFF`, chat says `Rain disabled`;
-   toggle back on. Close GUI; confirm `.minecraft\config\rain.properties` now
-   exists and contains `masterEnabled=true`, `guiKey=54`, `toggleKey=0`.
-7. Options → Controls → category **Rain**: two bindings (`Open Rain GUI`,
-   `Toggle Rain (master)`). Bind the toggle to a key, press it in-game →
-   chat `Rain disabled` / `Rain enabled`. Close GUI once → the key code is
-   persisted in `rain.properties`.
-8. Click **INJECT** again on the same process → injector shows "Rain is already
-   loaded in this process" (no second chat line, no crash).
-9. Negative test: start a **vanilla** 1.8.9 profile, Refresh → row shows
-   `Vanilla`; INJECT → refused with "Rain requires a Forge 1.8.9 process".
-10. Collect logs: `dist\rain-payload.log`, `dist\rain-bootstrap.log`,
-    `%TEMP%\RainInjector\` (if present), and the game's `logs\latest.log`
-    (look for `[Rain] core started (mode=injected`).
+The Java bootstrap harness uses a synthetic game-thread endpoint. It checks
+the system and wrapper classloader paths, a JAR path with spaces and Unicode,
+repeat startup, and a startup failure that must leave the loaded flag unset.
+It does not start Minecraft or prove Forge event-bus delivery.
 
-Pass criteria: steps 3–8 behave as described with no game crash or freeze; the
-game remains playable; no exceptions containing `first.rain` in `latest.log`.
+The detector harness has 345 assertions over synthetic normal, skilled,
+suspicious, noisy and recovery traces. `check-detector-static.ps1` verifies
+detector registration and cleanup, master/world resets, key persistence, and
+absence of network/process/send behavior in detector sources. Synthetic
+traces cannot establish real attack attribution.
 
-## Known limitations
+`verify-release.ps1` checks both native binaries are x64, compares the GUI and
+Java runtime version markers, confirms the EXE's embedded DLL and both JARs match the
+built files byte-for-byte, checks the ZIP contains the intended files, and
+writes SHA-256 hashes to the local release folder.
 
-- Re-injection after editing the jar requires a game restart (`LoadLibrary` on
-  an already-loaded DLL does not re-run `DllMain`; the JVM cannot unload the
-  loader).
-- The payload jar is only supported through Forge's `LaunchClassLoader`
-  (Forge 1.8.9). Fabric/Vanilla/OptiFine-only are refused by design.
-- Unsigned binaries; expect AV/SmartScreen friction.
+## Runtime limits
+
+- Forge uses its event bus and SRG names. Badlion uses a separate Notch-mapped
+  detector JAR and a scheduled game-thread loop. Both target Minecraft 1.8.9.
+- Lunar and other unsupported runtimes remain disabled. Badlion support was
+  live-tested on the specific 1.8.9 Java 17 client described above; another
+  Badlion build may need new mappings or integration checks.
+- Standard Launcher, Forge 1.8.9 under Prism/MultiMC, and Forge-based Feather
+  are eligible based on static markers and classloader tests. Wrapper profiles
+  that hide Forge markers show Needs verification and require confirmation before the
+  Java bootstrap's definitive Forge check. They have not been live-injected.
+- Forge event delivery and visual desktop rendering of the injector remain
+  unverified. Badlion's GUI key opened the screen in the live JVM, and the
+  master control changed and persisted across a close and reopen. Flash and
+  Nametag overlays are not part of the Badlion adapter yet; the final Badlion
+  build hides those controls.
+- After a partial bootstrap failure, restart Minecraft before retrying; an
+  already-loaded native DLL will not rerun its process-attach entry point.
+- The injector now clears the prior PID status and waits up to 36 seconds for
+  the Java result. Native DLL presence alone does not mean Rain initialized.
+- The UI does not offer DLL ejection: Rain's Java event registrations would
+  remain active after unloading its native bootstrap DLL.

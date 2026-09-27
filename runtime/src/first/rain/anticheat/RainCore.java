@@ -5,10 +5,10 @@ import net.minecraft.util.EnumChatFormatting;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.client.registry.ClientRegistry;
 import java.lang.reflect.Method;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import first.rain.anticheat.config.cfg;
 import first.rain.anticheat.gui.ClickGuiKeybind;
-import first.rain.anticheat.util.anticheat.AlertManager;
-import first.rain.anticheat.util.anticheat.AntiCheatData;
 import first.rain.anticheat.util.anticheat.FlashNotification;
 import first.rain.anticheat.util.anticheat.NametagOverlayRenderer;
 
@@ -19,7 +19,7 @@ import first.rain.anticheat.util.anticheat.NametagOverlayRenderer;
  * enable/disable toggle and keybind persistence.
  */
 public final class RainCore {
-   public static final String VERSION = "1.0.0-injectable";
+   public static final String VERSION = "1.1.0-injectable";
 
    private static volatile boolean started;
    private static String startMode;
@@ -62,7 +62,6 @@ public final class RainCore {
       cfg.v.masterEnabled = enabled;
       if (!enabled) {
          Rain.ANTICHEAT.clearAll();
-         AlertManager.clear();
       }
       cfg.save();
       if (announce) {
@@ -80,66 +79,32 @@ public final class RainCore {
       cfg.save();
    }
 
-   /**
-    * Entry point used by the injector bootstrap (via reflection). Safe to call
-    * from a non-game thread: waits for Minecraft to finish initializing, then
-    * hands the actual start to the game thread via addScheduledTask.
-    */
-   public static void startInjected(final String jarPath) {
-      try {
-         Thread thread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-               try {
-                  long deadline = System.currentTimeMillis() + 5L * 60L * 1000L;
-                  Minecraft mc = null;
-                  while (System.currentTimeMillis() < deadline) {
-                     try {
-                        mc = Minecraft.func_71410_x();
-                        if (mc != null && mc.field_71474_y != null) {
-                           break;
-                        }
-                     } catch (Throwable ignored) {
-                     }
-                     try {
-                        Thread.sleep(250L);
-                     } catch (InterruptedException ignored) {
-                     }
-                  }
-                  if (mc == null || mc.field_71474_y == null) {
-                     System.err.println("[Rain] startInjected: timed out after 5 minutes waiting for Minecraft to initialize");
-                     return;
-                  }
-                  final Minecraft fMc = mc;
-                  Runnable task = new Runnable() {
-                     @Override
-                     public void run() {
-                        boolean fresh = start("injected");
-                        if (fresh) {
-                           Rain.addMessage(EnumChatFormatting.AQUA + "Rain " + VERSION + " injected. "
-                              + EnumChatFormatting.GRAY + "Press the GUI key (default RSHIFT) to open settings.");
-                        } else {
-                           Rain.addMessage(EnumChatFormatting.GRAY + "Rain is already running.");
-                        }
-                     }
-                  };
-                  try {
-                     // func_152344_a returns ListenableFuture (Guava), which is not on the
-                     // compile classpath, so invoke it reflectively.
-                     Method addScheduledTask = Minecraft.class.getMethod("func_152344_a", Runnable.class);
-                     addScheduledTask.invoke(fMc, task);
-                  } catch (Exception e) {
-                     e.printStackTrace(System.err);
-                  }
-               } catch (Throwable t) {
-                  t.printStackTrace(System.err);
-               }
-            }
-         }, "Rain-Injected-Start");
-         thread.setDaemon(true);
-         thread.start();
-      } catch (Throwable t) {
-         t.printStackTrace(System.err);
+   /** Wait for the game thread to finish registration before reporting success. */
+   public static void startInjected(final String jarPath) throws Exception {
+      long deadline = System.currentTimeMillis() + 20000L;
+      Minecraft mc = null;
+      while (System.currentTimeMillis() < deadline) {
+         mc = Minecraft.func_71410_x();
+         if (mc != null && mc.field_71474_y != null) break;
+         Thread.sleep(200L);
       }
+      if (mc == null || mc.field_71474_y == null) {
+         throw new IllegalStateException("Minecraft was not ready after 20 seconds");
+      }
+      Runnable task = new Runnable() {
+         @Override
+         public void run() {
+            boolean fresh = start("injected");
+            if (fresh) {
+               Rain.addMessage(EnumChatFormatting.AQUA + "Rain " + VERSION + " injected. "
+                  + EnumChatFormatting.GRAY + "Press the GUI key (default RSHIFT) to open settings.");
+            }
+         }
+      };
+      // The game API returns a Guava ListenableFuture, which implements Future.
+      Method addScheduledTask = Minecraft.class.getMethod("func_152344_a", Runnable.class);
+      Future<?> completion = (Future<?>) addScheduledTask.invoke(mc, task);
+      completion.get(10, TimeUnit.SECONDS);
+      if (!isStarted()) throw new IllegalStateException("Rain registration did not complete");
    }
 }
