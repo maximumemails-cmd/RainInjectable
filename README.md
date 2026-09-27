@@ -36,8 +36,14 @@ inspection and testing.
 
 ## Usage
 
+For a ready-to-run Windows x64 build, download
+`RainInjectable-Windows-x64.zip` from the
+[GitHub Releases page](https://github.com/maximumemails-cmd/RainInjectable/releases),
+extract it, and run `RainInjectable.exe`. The ZIP includes the license and
+attribution notes. The standalone EXE is also available on the release page.
+
 Start Forge or Badlion Client with Minecraft 1.8.9, reach the main menu, run
-`releases/1.1.0-injectable/RainInjectable.exe`, and select the game process.
+`RainInjectable.exe`, and select the game process.
 Compatibility shows staged evidence and the exact unsupported reason for the
 selected target. Badlion initially shows **Needs verification** because the
 in-process adapter checks its game classes and scheduling. Lunar, Fabric,

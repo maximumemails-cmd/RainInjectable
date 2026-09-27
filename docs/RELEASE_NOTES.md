@@ -1,4 +1,4 @@
-# RainInjectable 1.1.0-injectable — local Windows x64 release
+# RainInjectable 1.1.0-injectable — Windows x64 release
 
 ## Changes
 
@@ -48,5 +48,6 @@ Rain uses the native DLL loading path and a separate Java detector runtime for
 Badlion. Lunar support is not implemented or verified in this release.
 
 The owner reports permission to distribute this modified Rain source as part of
-RainInjectable under GPL-3.0. Public release also requires a Git remote and
-working GitHub authentication.
+RainInjectable under GPL-3.0. The ZIP includes the executable, GPL-3.0 license,
+license notes, credits, and the README. The matching source is available from
+the GitHub release tag.

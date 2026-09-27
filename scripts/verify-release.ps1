@@ -106,10 +106,10 @@ try {
 $archive = [System.IO.Compression.ZipFile]::OpenRead($zip)
 try {
     $names = @($archive.Entries | ForEach-Object { $_.FullName })
-    foreach ($required in @('RainInjectable.exe', 'LICENSE', 'LICENSE-NOTES.md', 'README.md', 'RELEASE_NOTES.md')) {
+    foreach ($required in @('RainInjectable.exe', 'LICENSE', 'LICENSE-NOTES.md', 'CREDITS.md', 'README.md', 'RELEASE_NOTES.md')) {
         if ($names -notcontains $required) { throw "Release ZIP lacks $required" }
     }
-    if ($names.Count -ne 5) { throw 'Release ZIP contains unexpected files' }
+    if ($names.Count -ne 6) { throw 'Release ZIP contains unexpected files' }
 } finally { $archive.Dispose() }
 
 Write-Host "Release verification OK: $version, x64, embedded DLL and JARs byte-for-byte, ZIP contents"

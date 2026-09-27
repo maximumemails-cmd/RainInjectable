@@ -88,12 +88,14 @@ New-Item -ItemType Directory -Force -Path $bundleStage | Out-Null
 Copy-Item $exe (Join-Path $bundleStage 'RainInjectable.exe') -Force
 Copy-Item (Join-Path $root 'LICENSE') $bundleStage -Force
 Copy-Item (Join-Path $root 'docs\LICENSE-NOTES.md') $bundleStage -Force
+Copy-Item (Join-Path $root 'CREDITS.md') $bundleStage -Force
 Copy-Item (Join-Path $root 'README.md') $bundleStage -Force
 Copy-Item (Join-Path $root 'docs\RELEASE_NOTES.md') $bundleStage -Force
 $bundle = Join-Path $releaseDir 'RainInjectable-Windows-x64.zip'
 Compress-Archive -LiteralPath (Join-Path $bundleStage 'RainInjectable.exe'),
     (Join-Path $bundleStage 'LICENSE'),
     (Join-Path $bundleStage 'LICENSE-NOTES.md'),
+    (Join-Path $bundleStage 'CREDITS.md'),
     (Join-Path $bundleStage 'README.md'),
     (Join-Path $bundleStage 'RELEASE_NOTES.md') -DestinationPath $bundle -Force
 
