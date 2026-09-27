@@ -64,15 +64,26 @@ public final class AlertManager {
 
    public static void recordLegacy(EntityPlayer player, CheckType check, int vl,
       String measurements) {
+      recordLegacy(player, check, vl, measurements, 0.25D);
+   }
+
+   public static void recordLegacy(EntityPlayer player, CheckType check, int vl,
+      String measurements, double strength) {
       // Legacy checks have no measured false-positive rate. Keep their signal
       // visible as review evidence without a red nametag or confirmed label.
       String group = check == CheckType.LEGIT_SCAFFOLD ? "bridging rhythm" : "combat proxies";
       review(player, group, check.displayName(), "legacy pattern score=" + vl
-         + "; " + measurements + "; attack/placement identity is inferred", 1);
+         + "; " + measurements + "; attack/placement identity is inferred",
+         1, strength, 0.55D);
    }
 
    public static void review(EntityPlayer player, String group, String hypothesis,
       String explanation, int units) {
+      review(player, group, hypothesis, explanation, units, 0.35D, 0.65D);
+   }
+
+   public static void review(EntityPlayer player, String group, String hypothesis,
+      String explanation, int units, double strength, double reliability) {
       if (!RainCore.isEnabled()) {
          return;
       }
@@ -87,16 +98,18 @@ public final class AlertManager {
 
       UUID uuid = player.func_110124_au();
       long tick = mc.field_71441_e.func_82737_E();
-      EvidenceLedger.State state = ledger.add(uuid, tick, group, hypothesis, explanation, units);
+      EvidenceLedger.State state = ledger.add(uuid, tick, group, hypothesis, explanation,
+         units, strength, reliability);
       if (state != EvidenceLedger.State.REVIEW) return;
       Long last = lastReviewMessage.get(uuid);
       if (last != null && tick >= last && tick - last < REPEAT_LOG_TICKS) return;
       lastReviewMessage.put(uuid, tick);
       Rain.addMessage(
-         EnumChatFormatting.DARK_GRAY + "[" + EnumChatFormatting.WHITE + "AntiCheat" + EnumChatFormatting.DARK_GRAY + "] "
-            + EnumChatFormatting.WHITE + player.func_70005_c_()
-            + EnumChatFormatting.GRAY + " has a pattern to review ("
-            + EnumChatFormatting.AQUA + hypothesis + EnumChatFormatting.GRAY + ")");
+         EnumChatFormatting.DARK_GRAY + "[" + EnumChatFormatting.WHITE + "Rain" + EnumChatFormatting.DARK_GRAY + "] "
+            + EnumChatFormatting.WHITE + player.func_70005_c_() + EnumChatFormatting.GRAY + " • "
+            + EnumChatFormatting.AQUA + hypothesis + EnumChatFormatting.GRAY + " • "
+            + EnumChatFormatting.WHITE + ledger.confidence(uuid) + "%"
+            + EnumChatFormatting.GRAY + " evidence confidence");
       if (first.rain.anticheat.config.cfg.v.debugMessages) {
          System.out.println("[Rain] review " + player.func_110124_au() + " " + hypothesis + ": " + explanation);
       }

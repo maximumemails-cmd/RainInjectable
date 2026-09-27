@@ -32,7 +32,8 @@ public class AutoBlockCheck {
          if (cfg.v.debugMessages) System.out.println("[Rain] AutoBlock " + player.func_70005_c_()
             + " episodes=" + st.episodes() + " score=" + st.score());
          AlertManager.recordLegacy(player, AlertManager.CheckType.AUTO_BLOCK, st.score(),
-            "overlapEpisodes=" + st.episodes());
+            "overlapEpisodes=" + st.episodes(),
+            Math.min(0.5D, 0.15D + 0.04D * st.episodes()));
       }
    }
 

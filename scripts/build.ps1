@@ -16,7 +16,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $dist = Join-Path $root $DistName
 $nativeBuild = Join-Path (Join-Path $root 'build') $NativeBuildName
-$releaseDir = Join-Path $root 'releases\1.2.0-injectable'
+$releaseDir = Join-Path $root 'releases\1.3.0-injectable'
 
 function Find-Jdk8 {
     if ($env:RAIN_JDK8 -and (Test-Path (Join-Path $env:RAIN_JDK8 'bin\javac.exe'))) { return $env:RAIN_JDK8 }
@@ -84,6 +84,7 @@ Copy-Item $jar (Join-Path $releaseDir 'rain-runtime.jar') -Force
 Copy-Item $badlionJar (Join-Path $releaseDir 'rain-badlion.jar') -Force
 Copy-Item (Join-Path $root 'docs\RELEASE_NOTES.md') (Join-Path $releaseDir 'RELEASE_NOTES.md') -Force
 Copy-Item (Join-Path $root 'NEXT_GEN_IMPLEMENTATION_SUMMARY.md') (Join-Path $releaseDir 'NEXT_GEN_IMPLEMENTATION_SUMMARY.md') -Force
+Copy-Item (Join-Path $root 'RAIN_DETECTION_UPGRADE_REPORT.md') (Join-Path $releaseDir 'RAIN_DETECTION_UPGRADE_REPORT.md') -Force
 $bundleStage = Join-Path $root 'build\release-bundle'
 New-Item -ItemType Directory -Force -Path $bundleStage | Out-Null
 Copy-Item $exe (Join-Path $bundleStage 'RainInjectable.exe') -Force
@@ -93,6 +94,7 @@ Copy-Item (Join-Path $root 'CREDITS.md') $bundleStage -Force
 Copy-Item (Join-Path $root 'README.md') $bundleStage -Force
 Copy-Item (Join-Path $root 'docs\RELEASE_NOTES.md') $bundleStage -Force
 Copy-Item (Join-Path $root 'NEXT_GEN_IMPLEMENTATION_SUMMARY.md') $bundleStage -Force
+Copy-Item (Join-Path $root 'RAIN_DETECTION_UPGRADE_REPORT.md') $bundleStage -Force
 $bundle = Join-Path $releaseDir 'RainInjectable-Windows-x64.zip'
 Compress-Archive -LiteralPath (Join-Path $bundleStage 'RainInjectable.exe'),
     (Join-Path $bundleStage 'LICENSE'),
@@ -100,7 +102,8 @@ Compress-Archive -LiteralPath (Join-Path $bundleStage 'RainInjectable.exe'),
     (Join-Path $bundleStage 'CREDITS.md'),
     (Join-Path $bundleStage 'README.md'),
     (Join-Path $bundleStage 'RELEASE_NOTES.md'),
-    (Join-Path $bundleStage 'NEXT_GEN_IMPLEMENTATION_SUMMARY.md') -DestinationPath $bundle -Force
+    (Join-Path $bundleStage 'NEXT_GEN_IMPLEMENTATION_SUMMARY.md'),
+    (Join-Path $bundleStage 'RAIN_DETECTION_UPGRADE_REPORT.md') -DestinationPath $bundle -Force
 
 Write-Host ''
 Write-Host "staged to $dist"

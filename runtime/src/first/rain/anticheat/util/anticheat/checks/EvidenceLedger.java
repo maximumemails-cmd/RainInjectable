@@ -25,6 +25,8 @@ public final class EvidenceLedger {
    private static final class Subject {
       final Map<String, Long> lastGroupTick = new HashMap<String, Long>();
       int index, independentEpisodes, cleanExposure;
+      double strengthSum, reliabilitySum;
+      int weightedEpisodes;
       long lastTick = Long.MIN_VALUE;
       long lastEpisodeTick = Long.MIN_VALUE;
    }
@@ -34,6 +36,11 @@ public final class EvidenceLedger {
    /** Max one contribution per dependency group in a 20-tick fight window. */
    public State add(UUID player, long tick, String group, String hypothesis,
       String explanation, int units) {
+      return add(player, tick, group, hypothesis, explanation, units, 0.3D, 0.65D);
+   }
+
+   public State add(UUID player, long tick, String group, String hypothesis,
+      String explanation, int units, double strength, double reliability) {
       if (player == null || group == null || units < 1 || units > 3) return State.INSUFFICIENT;
       Subject subject = subjects.get(player);
       if (subject == null) { subject = new Subject(); subjects.put(player, subject); }
@@ -41,6 +48,9 @@ public final class EvidenceLedger {
       if (previous != null && tick >= previous && tick - previous < 20) return state(subject);
       subject.lastGroupTick.put(group, tick);
       subject.index = Math.min(12, subject.index + units);
+      subject.strengthSum += Math.max(0.0D, Math.min(1.0D, strength));
+      subject.reliabilitySum += Math.max(0.0D, Math.min(1.0D, reliability));
+      subject.weightedEpisodes++;
       if (subject.lastEpisodeTick == Long.MIN_VALUE || tick - subject.lastEpisodeTick >= 20) {
          subject.independentEpisodes = Math.min(12, subject.independentEpisodes + 1);
          subject.lastEpisodeTick = tick;
@@ -60,12 +70,34 @@ public final class EvidenceLedger {
       if (++subject.cleanExposure >= 40) {
          subject.cleanExposure = 0;
          subject.index = Math.max(0, subject.index - 1);
-         if (subject.index == 0) subject.independentEpisodes = 0;
+         subject.strengthSum *= 0.84D;
+         subject.reliabilitySum *= 0.84D;
+         if (subject.index == 0) {
+            subject.independentEpisodes = 0;
+            subject.weightedEpisodes = 0;
+            subject.strengthSum = subject.reliabilitySum = 0.0D;
+            subject.lastGroupTick.clear();
+         }
       }
    }
 
    public State state(UUID player) {
       return state(subjects.get(player));
+   }
+
+   /** Bounded evidence-confidence display, not a calibrated cheating probability. */
+   public int confidence(UUID player) {
+      Subject s = subjects.get(player);
+      if (s == null || s.index == 0) return 0;
+      int diversity = Math.min(3, s.lastGroupTick.size());
+      double meanStrength = s.weightedEpisodes == 0 ? 0.0D
+         : s.strengthSum / s.weightedEpisodes;
+      double meanReliability = s.weightedEpisodes == 0 ? 0.0D
+         : s.reliabilitySum / s.weightedEpisodes;
+      double value = 22.0D + Math.min(4, s.independentEpisodes) * 7.0D
+         + diversity * 7.0D + meanStrength * 16.0D + meanReliability * 13.0D
+         - Math.min(12.0D, s.cleanExposure * 0.15D);
+      return (int)Math.round(Math.max(0.0D, Math.min(85.0D, value)));
    }
 
    private static State state(Subject subject) {

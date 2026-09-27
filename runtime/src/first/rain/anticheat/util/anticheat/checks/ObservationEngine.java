@@ -15,7 +15,7 @@ import java.util.UUID;
  * It deliberately emits review evidence, not a calibrated cheat probability.
  */
 public final class ObservationEngine {
-   public static final int HISTORY = 8;
+   public static final int HISTORY = 80; // four seconds at 20 observed ticks/s
    public static final double LEGAL_REACH = 3.0D;
    public static final double OBSERVER_SLACK = 1.5D;
    public static final double GROSS_RESIDUAL = 0.5D;
@@ -30,6 +30,12 @@ public final class ObservationEngine {
    private double observerSlack = OBSERVER_SLACK;
    private double grossResidual = GROSS_RESIDUAL;
    private boolean reachEnabled = true;
+   private int historyLimit = 8;
+
+   public void setTemporalEnabled(boolean enabled) {
+      int limit = enabled ? HISTORY : 8;
+      if (limit != historyLimit) { tracks.clear(); historyLimit = limit; }
+   }
 
    public void configure(boolean reachEnabled, int maximumPing, double observerSlack,
       double grossResidual) {
@@ -47,9 +53,20 @@ public final class ObservationEngine {
       public final float yaw, pitch;
       public final boolean swing, riding, survival;
       public final int hurt, ping;
+      public final boolean sneak, sprint, blockHeld, grounded, uncertainEnvironment;
+      /** Distance from the supported block edge, or NaN when no clear edge exists. */
+      public final double edgeDistance;
       public Sample(UUID id, double x, double y, double z, double eyeHeight,
          double height, float yaw, float pitch, boolean swing, int hurt,
          int ping, boolean riding, boolean survival) {
+         this(id, x, y, z, eyeHeight, height, yaw, pitch, swing, hurt, ping,
+            riding, survival, false, false, false, false, false, Double.NaN);
+      }
+      public Sample(UUID id, double x, double y, double z, double eyeHeight,
+         double height, float yaw, float pitch, boolean swing, int hurt,
+         int ping, boolean riding, boolean survival, boolean sneak, boolean sprint,
+         boolean blockHeld, boolean grounded, boolean uncertainEnvironment,
+         double edgeDistance) {
          this.id = id;
          this.x = x; this.y = y; this.z = z;
          this.eyeHeight = eyeHeight; this.height = height;
@@ -57,6 +74,9 @@ public final class ObservationEngine {
          this.swing = swing; this.hurt = hurt; this.ping = ping;
          this.riding = riding;
          this.survival = survival;
+         this.sneak = sneak; this.sprint = sprint; this.blockHeld = blockHeld;
+         this.grounded = grounded; this.uncertainEnvironment = uncertainEnvironment;
+         this.edgeDistance = edgeDistance;
       }
    }
 
@@ -107,7 +127,7 @@ public final class ObservationEngine {
       long lastObservedTick = Long.MIN_VALUE;
       long lastReviewTick = Long.MIN_VALUE;
       int reachEpisodes;
-      void push(Sample sample, long tick) {
+      void push(Sample sample, long tick, int limit) {
          if (lastObservedTick != Long.MIN_VALUE && tick - lastObservedTick != 1) {
             size = 0;
             lastSwingTick = Long.MIN_VALUE;
@@ -120,7 +140,7 @@ public final class ObservationEngine {
          }
          samples[head] = sample;
          head = (head + 1) % HISTORY;
-         size = Math.min(HISTORY, size + 1);
+         size = Math.min(limit, size + 1);
          if (sample.swing && !wasSwinging) lastSwingTick = tick;
          wasSwinging = sample.swing;
          lastObservedTick = tick;
@@ -131,9 +151,10 @@ public final class ObservationEngine {
          Sample current = at(0);
          for (int i = 1; i < 5; i++) {
             Sample old = at(i);
-            if (distance(current, old) > 0.35D || old.riding) return false;
+            if (distance(current, old) > 0.35D || old.riding
+               || old.uncertainEnvironment || Math.abs(old.ping - current.ping) > 80) return false;
          }
-         return !current.riding;
+         return !current.riding && !current.uncertainEnvironment;
       }
    }
 
@@ -152,7 +173,7 @@ public final class ObservationEngine {
          if (track == null) { track = new Track(); tracks.put(sample.id, track); }
          boolean freshHurt = track.lastObservedTick == tick - 1
             && sample.hurt >= 7 && sample.hurt > track.lastHurt;
-         track.push(sample, tick);
+         track.push(sample, tick, historyLimit);
          track.lastHurt = sample.hurt;
          if (freshHurt) hurtOnsets.add(sample.id);
       }
@@ -296,9 +317,62 @@ public final class ObservationEngine {
    public boolean hasContinuousQuality(UUID id) {
       Track track = tracks.get(id);
       if (track == null || track.size < 5 || track.lastObservedTick != lastTick) return false;
-      Sample sample = track.at(0);
-      return !sample.riding && sample.survival
-         && sample.ping >= 0 && sample.ping <= maximumPing;
+      for (int i = 0; i < 5; i++) {
+         Sample sample = track.at(i);
+         if (sample.riding || !sample.survival || sample.uncertainEnvironment
+            || sample.ping < 0 || sample.ping > maximumPing) return false;
+         if (i > 0 && (Math.abs(sample.ping - track.at(i - 1).ping) > 80
+            || distance(sample, track.at(i - 1)) > 1.5D)) return false;
+      }
+      return true;
+   }
+
+   public Sample latest(UUID id) {
+      Track track = tracks.get(id);
+      return track == null || track.size == 0 ? null : track.at(0);
+   }
+
+   /** A relayed swing is only usable when no other nearby player swung in the attribution window. */
+   public boolean unambiguousSwing(UUID actorId, UUID victimId, long tick) {
+      Track victim = tracks.get(victimId);
+      Track actor = tracks.get(actorId);
+      if (victim == null || actor == null || victim.size < 5 || actor.size < 5
+         || victim.lastObservedTick != tick || actor.lastObservedTick != tick
+         || actor.lastSwingTick < tick - 4 || actor.lastSwingTick > tick) return false;
+      for (Map.Entry<UUID, Track> entry : tracks.entrySet()) {
+         if (entry.getKey().equals(actorId) || entry.getKey().equals(victimId)) continue;
+         Track other = entry.getValue();
+         if (other.size == 0 || other.lastObservedTick != tick) continue;
+         if (distance(other.at(0), victim.at(0)) <= 4.5D
+            && other.lastSwingTick >= tick - 4 && other.lastSwingTick <= tick) return false;
+      }
+      return true;
+   }
+
+   /** Median presentation turn on clean, non-swing ticks; support only, never proof. */
+   public double calmTurnBaseline(UUID id) {
+      Track track = tracks.get(id);
+      if (track == null || track.size < 24) return Double.NaN;
+      double[] turns = new double[track.size - 1];
+      int count = 0;
+      for (int age = 0; age < track.size - 1; age++) {
+         Sample now = track.at(age), before = track.at(age + 1);
+         if (now.swing || before.swing || now.hurt > 0 || before.hurt > 0
+            || now.uncertainEnvironment || before.uncertainEnvironment
+            || Math.abs(now.ping - before.ping) > 40) continue;
+         double step = Math.abs(wrap(now.yaw - before.yaw));
+         if (step > 0.5D) turns[count++] = step;
+      }
+      if (count < 20) return Double.NaN;
+      java.util.Arrays.sort(turns, 0, count);
+      return turns[count / 2];
+   }
+
+   private static double wrap(double angle) {
+      angle %= 360.0D;
+      if (angle >= 180.0D) angle -= 360.0D;
+      if (angle < -180.0D) angle += 360.0D;
+      return angle;
    }
 
    public void clear() {

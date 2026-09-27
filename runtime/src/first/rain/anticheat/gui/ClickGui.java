@@ -12,6 +12,7 @@ import net.minecraft.client.audio.PositionedSoundRecord;
 import net.minecraft.client.gui.Gui;
 import net.minecraft.client.gui.GuiScreen;
 import net.minecraft.util.ResourceLocation;
+import org.lwjgl.opengl.GL11;
 
 public class ClickGui extends GuiScreen {
    private static final int CARD_W = 120;
@@ -53,6 +54,8 @@ public class ClickGui extends GuiScreen {
          () -> cfg.v.detectLegitScaffold, (v) -> cfg.v.detectLegitScaffold = v, CARD_W, CARD_H));
       this.alertCards.add(new ModuleCard("Aim pattern", "Hurt-correlated aim presentation; review only.",
          () -> cfg.v.detectKillaura, (v) -> cfg.v.detectKillaura = v, CARD_W, CARD_H));
+      this.alertCards.add(new ModuleCard("Temporal Analysis", "Four seconds of bounded player history.",
+         () -> cfg.v.temporalAnalysis, (v) -> cfg.v.temporalAnalysis = v, CARD_W, CARD_H));
 
       this.flashCard = new FlashSettingsCard(CARD_W * 2 + GAP, FLASH_CARD_HEIGHT);
       this.nametagCard = new NametagSettingsCard(CARD_W * 3 + GAP * 2, NAMETAG_CARD_HEIGHT);
@@ -66,8 +69,8 @@ public class ClickGui extends GuiScreen {
    @Override
    public void func_73866_w_() {
       if (panelX == Integer.MIN_VALUE) {
-         panelX = (this.field_146294_l - this.panelWidth) / 2;
-         panelY = (this.field_146295_m - this.panelHeight) / 2;
+         panelX = (this.logicalWidth() - this.panelWidth) / 2;
+         panelY = (this.logicalHeight() - this.panelHeight) / 2;
       }
       this.clampPanel();
       this.lastFrameMillis = System.currentTimeMillis();
@@ -75,6 +78,9 @@ public class ClickGui extends GuiScreen {
 
    @Override
    public void func_73863_a(int mouseX, int mouseY, float partialTicks) {
+      int screenMouseX = mouseX, screenMouseY = mouseY;
+      mouseX = this.logicalMouseX(mouseX);
+      mouseY = this.logicalMouseY(mouseY);
       long now = System.currentTimeMillis();
       float deltaSeconds = Math.min((float)(now - this.lastFrameMillis) / 1000.0F, 0.1F);
       this.lastFrameMillis = now;
@@ -92,6 +98,8 @@ public class ClickGui extends GuiScreen {
       }
 
       Gui.func_73734_a(0, 0, this.field_146294_l, this.field_146295_m, 0x88000000);
+      GL11.glPushMatrix();
+      GL11.glScalef(this.uiScale(), this.uiScale(), 1.0F);
       RenderUtil.drawRoundedShadow(panelX, panelY, this.panelWidth, this.panelHeight, 7.0F);
       RenderUtil.drawRoundedRect(panelX, panelY, this.panelWidth, this.panelHeight, 7.0F, 0xFA0C0C0C);
       RenderUtil.drawRoundedOutline(panelX, panelY, this.panelWidth, this.panelHeight, 7.0F, 1.0F, 0x46FFFFFF);
@@ -106,9 +114,9 @@ public class ClickGui extends GuiScreen {
 
       this.drawTabs(mouseX, mouseY);
 
-      float alertsAlpha = this.pageAlpha(TAB_ALERTS);
-      float notifAlpha = this.pageAlpha(TAB_NOTIFICATIONS);
-      float nametagAlpha = this.pageAlpha(TAB_NAMETAGS);
+      float alertsAlpha = activeTab == TAB_ALERTS ? 1.0F : 0.0F;
+      float notifAlpha = activeTab == TAB_NOTIFICATIONS ? 1.0F : 0.0F;
+      float nametagAlpha = activeTab == TAB_NAMETAGS ? 1.0F : 0.0F;
       int contentY = panelY + TITLE_BAR_HEIGHT + TAB_BAR_HEIGHT + PADDING;
       int alertsMouseX = activeTab == TAB_ALERTS ? mouseX : -9999;
       int notifMouseX = activeTab == TAB_NOTIFICATIONS ? mouseX : -9999;
@@ -117,21 +125,22 @@ public class ClickGui extends GuiScreen {
       if (alertsAlpha > 0.02F) {
          for (int i = 0; i < this.alertCards.size(); ++i) {
             ModuleCard card = this.alertCards.get(i);
-            card.setPosition(panelX + PADDING + (i % 3) * (CARD_W + GAP), contentY + (i / 3) * (CARD_H + GAP));
+            card.setPosition(ClickGuiLayout.cardX(panelX, i, PADDING, CARD_W, GAP),
+               ClickGuiLayout.cardY(contentY, i, CARD_H, GAP));
             card.render(this.field_146289_q, alertsMouseX, mouseY, deltaSeconds, alertsAlpha);
          }
       }
       if (notifAlpha > 0.02F) {
          this.flashCard.setPosition(panelX + PADDING, contentY);
          this.flashCard.render(this.field_146289_q, notifMouseX, mouseY, deltaSeconds, notifAlpha);
-         int exportX = panelX + PADDING + CARD_W + GAP;
+         int exportX = panelX + PADDING + 2 * (CARD_W + GAP);
          boolean exportHover = activeTab == TAB_NOTIFICATIONS && mouseX >= exportX
             && mouseX < exportX + CARD_W && mouseY >= contentY && mouseY < contentY + CARD_H;
          RenderUtil.drawRoundedRect(exportX, contentY, CARD_W, CARD_H, 6.0F,
             exportHover ? 0xFF292929 : 0xFF1D1D1D);
          this.field_146289_q.func_78276_b("Export evidence", exportX + 10, contentY + 14, 0xFFFFFFFF);
          this.field_146289_q.func_78276_b("Local JSONL only", exportX + 10, contentY + 32, 0xFFAAAAAA);
-         this.debugCard.setPosition(panelX + PADDING + 2 * (CARD_W + GAP), contentY);
+         this.debugCard.setPosition(exportX, contentY + CARD_H + GAP);
          this.debugCard.render(this.field_146289_q, notifMouseX, mouseY, deltaSeconds, notifAlpha);
       }
       if (nametagAlpha > 0.02F) {
@@ -139,7 +148,8 @@ public class ClickGui extends GuiScreen {
          this.nametagCard.render(this.field_146289_q, nametagMouseX, mouseY, deltaSeconds, nametagAlpha);
       }
 
-      super.func_73863_a(mouseX, mouseY, partialTicks);
+      GL11.glPopMatrix();
+      super.func_73863_a(screenMouseX, screenMouseY, partialTicks);
    }
 
    private void drawTabs(int mouseX, int mouseY) {
@@ -177,10 +187,6 @@ public class ClickGui extends GuiScreen {
       return new int[]{baseX, alertsW, notifX, notifW, nametagX, nametagW};
    }
 
-   private float pageAlpha(int tab) {
-      return Math.max(0.0F, 1.0F - Math.min(1.0F, Math.abs(this.tabAnim - (float)tab)));
-   }
-
    private int tabX(int[] tabs, int tab) {
       return tabs[tab * 2];
    }
@@ -205,6 +211,8 @@ public class ClickGui extends GuiScreen {
    @Override
    protected void func_73864_a(int mouseX, int mouseY, int mouseButton) {
       super.func_73864_a(mouseX, mouseY, mouseButton);
+      mouseX = this.logicalMouseX(mouseX);
+      mouseY = this.logicalMouseY(mouseY);
       if (mouseButton != 0) {
          return;
       }
@@ -239,7 +247,7 @@ public class ClickGui extends GuiScreen {
          if (this.flashCard.mouseClicked(mouseX, mouseY, mouseButton)) {
             return;
          }
-         int exportX = panelX + PADDING + CARD_W + GAP;
+         int exportX = panelX + PADDING + 2 * (CARD_W + GAP);
          int contentY = panelY + TITLE_BAR_HEIGHT + TAB_BAR_HEIGHT + PADDING;
          if (mouseX >= exportX && mouseX < exportX + CARD_W
             && mouseY >= contentY && mouseY < contentY + CARD_H) {
@@ -262,6 +270,8 @@ public class ClickGui extends GuiScreen {
    @Override
    protected void func_146273_a(int mouseX, int mouseY, int clickedMouseButton, long timeSinceLastClick) {
       super.func_146273_a(mouseX, mouseY, clickedMouseButton, timeSinceLastClick);
+      mouseX = this.logicalMouseX(mouseX);
+      mouseY = this.logicalMouseY(mouseY);
       if (activeTab == TAB_NOTIFICATIONS) {
          this.flashCard.mouseDragged(mouseX, mouseY);
       } else if (activeTab == TAB_NAMETAGS) {
@@ -300,7 +310,16 @@ public class ClickGui extends GuiScreen {
    }
 
    private void clampPanel() {
-      panelX = Math.max(0, Math.min(panelX, this.field_146294_l - this.panelWidth));
-      panelY = Math.max(0, Math.min(panelY, this.field_146295_m - this.panelHeight));
+      panelX = Math.max(0, Math.min(panelX, this.logicalWidth() - this.panelWidth));
+      panelY = Math.max(0, Math.min(panelY, this.logicalHeight() - this.panelHeight));
    }
+
+   private float uiScale() {
+      return ClickGuiLayout.scale(this.field_146294_l, this.field_146295_m,
+         this.panelWidth, this.panelHeight);
+   }
+   private int logicalWidth() { return ClickGuiLayout.logicalExtent(this.field_146294_l, this.uiScale()); }
+   private int logicalHeight() { return ClickGuiLayout.logicalExtent(this.field_146295_m, this.uiScale()); }
+   private int logicalMouseX(int x) { return (int)(x / this.uiScale()); }
+   private int logicalMouseY(int y) { return (int)(y / this.uiScale()); }
 }

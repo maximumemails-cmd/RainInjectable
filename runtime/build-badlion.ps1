@@ -63,6 +63,7 @@ $sources = @(
     (Join-Path $alt 'util\anticheat\FlashNotification.java'),
     (Join-Path $base 'config\cfg.java'),
     (Join-Path $base 'gui\ClickGui.java'),
+    (Join-Path $base 'gui\ClickGuiLayout.java'),
     (Join-Path $base 'gui\ModuleCard.java'),
     (Join-Path $base 'gui\FlashSettingsCard.java'),
     (Join-Path $base 'gui\NametagSettingsCard.java'),

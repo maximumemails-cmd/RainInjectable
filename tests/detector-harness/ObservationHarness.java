@@ -93,6 +93,39 @@ public final class ObservationHarness {
          result = creative.observe(tick, 1000000000L + tick * 50000000L, batch);
       }
       check(result.isEmpty(), "creative attacker is outside vanilla survival reach profile");
+      ObservationEngine attribution = new ObservationEngine();
+      for (int tick = 1; tick <= 7; tick++) {
+         List<ObservationEngine.Sample> batch = new ArrayList<ObservationEngine.Sample>();
+         batch.add(sample(ACTOR, 0, tick == 6, 0, 40));
+         batch.add(sample(VICTIM, 2.5, false, tick == 7 ? 9 : 0, 40));
+         batch.add(sample(OTHER, 2.8, tick == 6, 0, 40));
+         attribution.observe(tick, 1000000000L + tick * 50000000L, batch);
+      }
+      check(!attribution.unambiguousSwing(ACTOR, VICTIM, 7),
+         "second nearby swinger prevents attack attribution");
+      ObservationEngine baseline = new ObservationEngine();
+      baseline.setTemporalEnabled(true);
+      for (int tick = 1; tick <= 40; tick++) {
+         ObservationEngine.Sample turning = new ObservationEngine.Sample(ACTOR, 0, 64, 0,
+            1.62, 1.8, tick * 2.0f, 0, false, 0, 40, false, true);
+         baseline.observe(tick, 1000000000L + tick * 50000000L,
+            java.util.Collections.singletonList(turning));
+      }
+      check(Math.abs(baseline.calmTurnBaseline(ACTOR) - 2.0D) < 0.01D,
+         "long bounded history supplies calm turn baseline");
+      baseline.setTemporalEnabled(false);
+      check(Double.isNaN(baseline.calmTurnBaseline(ACTOR)),
+         "disabling temporal mode drops long history");
+      ObservationEngine environment = new ObservationEngine();
+      for (int tick = 1; tick <= 6; tick++) {
+         ObservationEngine.Sample scene = new ObservationEngine.Sample(ACTOR, 0, 64, 0,
+            1.62, 1.8, 0, 0, false, 0, 40, false, true,
+            false, false, false, true, tick == 3, Double.NaN);
+         environment.observe(tick, 1000000000L + tick * 50000000L,
+            java.util.Collections.singletonList(scene));
+      }
+      check(!environment.hasContinuousQuality(ACTOR),
+         "recent collision context delays legacy detector judgement");
       System.out.println("OBSERVATION HARNESS OK: " + assertions + " assertions");
    }
 }

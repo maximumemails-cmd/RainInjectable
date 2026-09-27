@@ -23,6 +23,7 @@ public class cfg {
       public boolean detectLegitScaffold = true;
       public boolean detectKillaura = true;
       public boolean reviewGrossReach = true;
+      public boolean temporalAnalysis = true;
       public int maxObserverPingMs = 150;
       public double reachObserverSlack = 1.5D;
       public double reachGrossResidual = 0.5D;
@@ -71,6 +72,7 @@ public class cfg {
       v.detectLegitScaffold = parseBool(props, "detectLegitScaffold", v.detectLegitScaffold);
       v.detectKillaura = parseBool(props, "detectKillaura", v.detectKillaura);
       v.reviewGrossReach = parseBool(props, "reviewGrossReach", v.reviewGrossReach);
+      v.temporalAnalysis = parseBool(props, "temporalAnalysis", v.temporalAnalysis);
       v.maxObserverPingMs = Math.max(0, Math.min(1000,
          parseInt(props, "maxObserverPingMs", v.maxObserverPingMs)));
       v.reachObserverSlack = Math.max(1.5D, Math.min(10.0D, parseDouble(props,
@@ -95,6 +97,7 @@ public class cfg {
       props.setProperty("detectLegitScaffold", Boolean.toString(v.detectLegitScaffold));
       props.setProperty("detectKillaura", Boolean.toString(v.detectKillaura));
       props.setProperty("reviewGrossReach", Boolean.toString(v.reviewGrossReach));
+      props.setProperty("temporalAnalysis", Boolean.toString(v.temporalAnalysis));
       props.setProperty("maxObserverPingMs", Integer.toString(v.maxObserverPingMs));
       props.setProperty("reachObserverSlack", Double.toString(v.reachObserverSlack));
       props.setProperty("reachGrossResidual", Double.toString(v.reachGrossResidual));

@@ -16,6 +16,7 @@ public final class EvidenceHarness {
       EvidenceLedger ledger = new EvidenceLedger();
       check(ledger.add(PLAYER, 10, "combat proxies", "aim", "inferred hit", 1)
          == EvidenceLedger.State.WATCH, "one weak signal watches");
+      int firstConfidence = ledger.confidence(PLAYER);
       check(ledger.add(PLAYER, 11, "combat proxies", "block", "same inferred hit", 1)
          == EvidenceLedger.State.WATCH, "shared attribution does not double count");
       check(ledger.facts().size() == 1, "dependent fact capped");
@@ -23,6 +24,8 @@ public final class EvidenceHarness {
          == EvidenceLedger.State.WATCH, "same fight groups do not create independent episodes");
       check(ledger.add(PLAYER, 35, "geometry", "reach", "second wide residual", 3)
          == EvidenceLedger.State.REVIEW, "independent episodes reach review");
+      check(ledger.confidence(PLAYER) > firstConfidence && ledger.confidence(PLAYER) <= 85,
+         "independent evidence raises bounded confidence");
       EvidenceLedger onlyGeometry = new EvidenceLedger();
       check(onlyGeometry.add(PLAYER, 1, "geometry", "reach", "first", 3)
          == EvidenceLedger.State.WATCH, "first reach remains watch");
@@ -31,6 +34,16 @@ public final class EvidenceHarness {
       for (int tick = 36; tick <= 320; tick++) ledger.cleanExposure(PLAYER, tick);
       check(ledger.state(PLAYER) == EvidenceLedger.State.INSUFFICIENT,
          "clean observed exposure decays ordinal evidence");
+      check(ledger.confidence(PLAYER) == 0, "clean exposure decays displayed confidence");
+      EvidenceLedger quality = new EvidenceLedger();
+      quality.add(PLAYER, 1, "geometry", "reach", "same residual", 3, 0.8, 0.95);
+      quality.add(PLAYER, 22, "geometry", "reach", "same residual", 3, 0.8, 0.95);
+      int clearConfidence = quality.confidence(PLAYER);
+      quality.clear();
+      quality.add(PLAYER, 1, "geometry", "reach", "same residual", 3, 0.8, 0.45);
+      quality.add(PLAYER, 22, "geometry", "reach", "same residual", 3, 0.8, 0.45);
+      check(clearConfidence > quality.confidence(PLAYER),
+         "poor network reliability lowers evidence confidence");
       ledger.add(PLAYER, 400, "geometry", "reach", "new session", 3);
       try {
          Path output = Files.createTempFile("rain-evidence-harness", ".jsonl");

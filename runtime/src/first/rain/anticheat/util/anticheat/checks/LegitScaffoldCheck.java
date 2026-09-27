@@ -32,14 +32,18 @@ public class LegitScaffoldCheck {
       double dx = player.field_70165_t - player.field_70142_S;
       double dz = player.field_70161_v - player.field_70136_U;
       double speedSq = dx * dx + dz * dz;
+      ObservationEngine.Sample observation = first.rain.anticheat.Rain.ANTICHEAT.observations.latest(id);
+      boolean clearEdge = observation != null && !observation.uncertainEnvironment
+         && Double.isFinite(observation.edgeDistance) && observation.edgeDistance <= 0.32D;
       boolean context = block && player.field_70122_E && player.field_70125_A >= 60.0F
-         && speedSq >= 0.0036D && speedSq <= 0.25D;
+         && speedSq >= 0.0036D && speedSq <= 0.25D && clearEdge;
       if (st.observe(tick, sneak, swing, context)) {
          if (cfg.v.debugMessages) System.out.println("[Rain] Scaffold " + player.func_70005_c_()
             + " regular=" + st.regularEpisodes() + " episodes=" + st.episodes()
             + " score=" + st.score());
          AlertManager.recordLegacy(player, AlertManager.CheckType.LEGIT_SCAFFOLD, st.score(),
-            "regularCrouches=" + st.regularEpisodes() + ", rhythmEpisodes=" + st.episodes());
+            "regularCrouches=" + st.regularEpisodes() + ", rhythmEpisodes=" + st.episodes(),
+            Math.min(0.5D, 0.12D + 0.04D * st.regularEpisodes()));
       }
    }
 

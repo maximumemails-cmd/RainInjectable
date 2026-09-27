@@ -8,7 +8,6 @@ import java.util.Set;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
-import net.minecraft.util.EnumChatFormatting;
 import first.rain.anticheat.Rain;
 import first.rain.anticheat.config.cfg;
 import first.rain.anticheat.util.anticheat.AlertManager;
@@ -77,6 +76,7 @@ public class KillauraCheck {
       int quietTicks;
       int snapHits;
       int snapMisses;
+      float lastSnapMagnitude;
       long lastSnapHitTick = Long.MIN_VALUE;
       // silent(track)
       UUID lastTargetId;
@@ -201,10 +201,17 @@ public class KillauraCheck {
       this.burstMachine(player, st, tick, yawChange, prevYaw, targets);
       this.trackComponent(player, st, yaw, targets);
       if (st.evidence.shouldAlert()) {
+         double baseline = Rain.ANTICHEAT.observations.calmTurnBaseline(uuid);
+         double baselineSupport = Double.isFinite(baseline)
+            && st.lastSnapMagnitude >= Math.max(25.0D, baseline * 2.0D) ? 0.06D : 0.0D;
          AlertManager.recordLegacy(player, AlertManager.CheckType.KILLAURA,
             (int)(st.evidence.score() / 10.0F), "snapHits=" + st.snapHits
                + ", trackSamples=" + st.trackSamples + ", trackInside=" + st.trackTicks
-               + ", inferredHurtEpisodes=" + st.evidence.combatHits());
+               + ", inferredHurtEpisodes=" + st.evidence.combatHits()
+               + ", calmTurnBaseline=" + (Double.isFinite(baseline)
+                  ? String.format(java.util.Locale.ROOT, "%.1f", baseline) : "unknown"),
+            Math.min(0.65D, 0.25D + 0.06D * st.snapHits
+               + 0.04D * st.evidence.combatHits() + baselineSupport));
          st.evidence.afterAlert();
          st.snapHits = 0;
          st.snapMisses = 0;
@@ -234,6 +241,9 @@ public class KillauraCheck {
          if (dx * dx + dy * dy + dz * dz > 20.25D) {
             continue;
          }
+         if (!Rain.ANTICHEAT.observations.unambiguousSwing(player.func_110124_au(), id, tick)) {
+            continue;
+         }
          if (this.minAimError(player, target, this.trail(id),
             player.field_70177_z, player.field_70125_A) > 18.0F) {
             continue;
@@ -241,7 +251,7 @@ public class KillauraCheck {
          if (!player.func_70685_l(target)) continue;
          st.lastCombatTick = tick;
          st.combatTarget = id;
-         st.evidence.combatHit();
+         st.evidence.combatHit(tick);
       }
    }
 
@@ -332,6 +342,7 @@ public class KillauraCheck {
          && tick - st.lastCombatTick <= 12L && bestTarget != null
          && player.func_70685_l(bestTarget)) {
          ++st.snapHits;
+         st.lastSnapMagnitude = st.burstSum;
          st.lastSnapHitTick = tick;
          this.debug(player, "silent(snap) hit " + st.snapHits + "/" + (st.snapHits + st.snapMisses)
             + " land=" + String.format("%.1f", bestErr) + (char)176 + " pre=" + (int)bestPre + (char)176);
@@ -474,8 +485,7 @@ public class KillauraCheck {
 
    private void debug(EntityPlayer player, String message) {
       if (cfg.v.debugMessages) {
-         Rain.addMessage(EnumChatFormatting.YELLOW + "[AntiCheat]: " + EnumChatFormatting.WHITE
-            + player.func_70005_c_() + " " + message);
+         System.out.println("[Rain] " + player.func_70005_c_() + " " + message);
       }
    }
 
@@ -494,6 +504,7 @@ public class KillauraCheck {
       st.quietTicks = 0;
       st.snapHits = 0;
       st.snapMisses = 0;
+      st.lastSnapMagnitude = 0.0F;
       st.lastSnapHitTick = Long.MIN_VALUE;
       st.trackSamples = 0;
       st.trackTicks = 0;

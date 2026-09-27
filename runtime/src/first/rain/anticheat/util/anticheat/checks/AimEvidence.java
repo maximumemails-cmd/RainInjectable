@@ -9,6 +9,7 @@ public final class AimEvidence {
    private float score;
    private int sourceMask;
    private int combatHits;
+   private long lastIndependentHit = Long.MIN_VALUE;
 
    public void tick(boolean inCombat) {
       score = Math.max(0.0F, score - (inCombat ? 0.8F : 1.5F));
@@ -16,6 +17,13 @@ public final class AimEvidence {
    }
 
    public void combatHit() { combatHits = Math.min(100, combatHits + 1); }
+
+   public void combatHit(long tick) {
+      if (lastIndependentHit == Long.MIN_VALUE || tick - lastIndependentHit >= 6L) {
+         combatHit();
+         lastIndependentHit = tick;
+      }
+   }
 
    public void add(int source, float weight) {
       score = Math.min(300.0F, score + weight);
@@ -27,8 +35,8 @@ public final class AimEvidence {
       return score >= 220.0F && sourceMask == 3 && combatHits >= 3;
    }
 
-   public void afterAlert() { score = 100.0F; sourceMask = 0; combatHits = 0; }
-   public void reset() { score = 0.0F; sourceMask = 0; combatHits = 0; }
+   public void afterAlert() { score = 100.0F; sourceMask = 0; combatHits = 0; lastIndependentHit = Long.MIN_VALUE; }
+   public void reset() { score = 0.0F; sourceMask = 0; combatHits = 0; lastIndependentHit = Long.MIN_VALUE; }
    public float score() { return score; }
    public int combatHits() { return combatHits; }
    public int sourceMask() { return sourceMask; }

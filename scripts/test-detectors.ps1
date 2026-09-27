@@ -15,11 +15,14 @@ $checks = Join-Path $root 'runtime\src\first\rain\anticheat\util\anticheat\check
     (Join-Path $checks 'EpisodeEvidence.java') (Join-Path $checks 'AimEvidence.java') `
     (Join-Path $checks 'AimGeometry.java') `
     (Join-Path $checks 'AutoBlockEvidence.java') (Join-Path $checks 'ScaffoldEvidence.java') `
-    (Join-Path $checks 'ObservationEngine.java') (Join-Path $checks 'EvidenceLedger.java') `
+    (Join-Path $checks 'ObservationEngine.java') (Join-Path $checks 'TemporalAnalysis.java') (Join-Path $checks 'EvidenceLedger.java') `
     (Join-Path $checks 'EvidenceExporter.java') `
+    (Join-Path $root 'runtime\src\first\rain\anticheat\gui\ClickGuiLayout.java') `
     (Join-Path $root 'tests\detector-harness\Harness.java') `
     (Join-Path $root 'tests\detector-harness\ObservationHarness.java') `
-    (Join-Path $root 'tests\detector-harness\EvidenceHarness.java')
+    (Join-Path $root 'tests\detector-harness\EvidenceHarness.java') `
+    (Join-Path $root 'tests\detector-harness\TemporalHarness.java') `
+    (Join-Path $root 'tests\detector-harness\GuiLayoutHarness.java')
 if ($LASTEXITCODE -ne 0) { throw 'detector harness compilation failed' }
 & $java -cp $out Harness
 if ($LASTEXITCODE -ne 0) { throw 'detector harness failed' }
@@ -27,3 +30,7 @@ if ($LASTEXITCODE -ne 0) { throw 'detector harness failed' }
 if ($LASTEXITCODE -ne 0) { throw 'observation harness failed' }
 & $java -cp $out EvidenceHarness
 if ($LASTEXITCODE -ne 0) { throw 'evidence harness failed' }
+& $java -cp $out TemporalHarness
+if ($LASTEXITCODE -ne 0) { throw 'temporal harness failed' }
+& $java -cp $out GuiLayoutHarness
+if ($LASTEXITCODE -ne 0) { throw 'GUI layout harness failed' }
