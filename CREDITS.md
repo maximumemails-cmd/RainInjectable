@@ -27,6 +27,17 @@ identity, which does not establish an individual human author.
 The pinned upstream revisions are in [docs/UPSTREAM.md](docs/UPSTREAM.md).
 The original repositories retain their own contributor histories.
 
+## Injector window design references
+
+- [Li-Deheng's animated loader](https://uiverse.io/Li-Deheng/bright-firefox-37)
+  informed the injector's pulsing progress dots.
+- [Adam Giebl's animated button](https://uiverse.io/adamgiebl/soft-gecko-85)
+  informed the primary action's glow and hover motion.
+
+The injector renders these treatments in native GDI+; it does not embed the
+reference HTML or CSS. Both Uiverse elements are published under the MIT
+License on their linked pages.
+
 ## Detection research references
 
 The following projects were referenced to study cheat behavior or anti-cheat

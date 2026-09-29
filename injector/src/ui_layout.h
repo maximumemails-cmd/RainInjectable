@@ -1,27 +1,42 @@
 #pragma once
-#include <algorithm>
+
 #include <windows.h>
 
 namespace rain {
-struct UiLayoutMetrics {
-    int actionTop;
-    int actionBottom;
-    int statusTop;
-    int compatibilityRowsBottom;
-    int compatibilityDetailTop;
-    int logBottom;
-    int footerTop;
+
+// Painting and hit testing share these DPI-aware rectangles.
+struct UiRect {
+    int x, y, width, height;
+    bool contains(int px, int py) const {
+        return px >= x && py >= y && px < x + width && py < y + height;
+    }
 };
-inline UiLayoutMetrics uiLayoutMetrics(int clientHeight, UINT dpi) {
+
+struct UiLayoutMetrics {
+    UiRect refresh, minimize, close;
+    UiRect target, inject, progress, statusText, tabs, statusTab, activityTab;
+    UiRect content, copyLog;
+};
+
+inline UiLayoutMetrics uiLayoutMetrics(int clientWidth, UINT dpi) {
     auto px = [dpi](int value) { return MulDiv(value, static_cast<int>(dpi), 96); };
-    const int actionTop = std::min(clientHeight - px(132), px(368));
+    const int inset = px(28);
+    const int fullWidth = clientWidth - inset * 2;
+    const int tabWidth = fullWidth / 2;
     return {
-        actionTop, actionTop + px(50),
-        std::min(clientHeight - px(88), px(443)),
-        px(176) + px(11 * 24) + px(22),
-        clientHeight - px(97),
-        px(178) + std::max(px(160), clientHeight - px(225)),
-        clientHeight - px(29)
+        {clientWidth - px(132), px(21), px(32), px(32)},
+        {clientWidth - px(88), px(21), px(32), px(32)},
+        {clientWidth - px(48), px(21), px(32), px(32)},
+        {inset, px(166), fullWidth, px(90)},
+        {inset, px(277), fullWidth, px(60)},
+        {inset + px(10), px(363), fullWidth - px(20), px(18)},
+        {inset, px(387), fullWidth, px(22)},
+        {inset, px(430), fullWidth, px(48)},
+        {inset + px(4), px(434), tabWidth - px(4), px(40)},
+        {inset + tabWidth, px(434), tabWidth - px(4), px(40)},
+        {inset, px(490), fullWidth, px(86)},
+        {clientWidth - inset - px(71), px(502), px(59), px(26)}
     };
 }
+
 } // namespace rain

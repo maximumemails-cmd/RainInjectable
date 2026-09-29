@@ -110,6 +110,7 @@ public final class AlertManager {
             + EnumChatFormatting.AQUA + hypothesis + EnumChatFormatting.GRAY + " • "
             + EnumChatFormatting.WHITE + ledger.confidence(uuid) + "%"
             + EnumChatFormatting.GRAY + " evidence confidence");
+      FlashNotification.trigger();
       if (first.rain.anticheat.config.cfg.v.debugMessages) {
          System.out.println("[Rain] review " + player.func_110124_au() + " " + hypothesis + ": " + explanation);
       }
@@ -129,6 +130,7 @@ public final class AlertManager {
 
    /** Drop all marked players. Call on world change / disconnect. */
    public static void clear() {
+      FlashEffect.clear();
       markedPlayers.clear();
       lastReviewMessage.clear();
       ledger.clear();

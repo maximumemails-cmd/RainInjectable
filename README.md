@@ -54,8 +54,11 @@ the actual bootstrap result. Right Shift opens Rain settings on Forge and on
 the Badlion 1.8.9 adapter. Badlion polls the configured GUI and master toggle
 keys on the game thread, runs detector checks, and reports review candidates in local
 chat. Both runtimes can export bounded, locally aliased evidence from the Notifications tab.
-Flash and Nametag overlays still require a Badlion render hook and receive no
-unvalidated public marks from the current review policy.
+Screen Flash now runs on Forge and the Badlion HUD, including the Notifications
+Test button. The information icon opens a paged guide to every detection module.
+The original KillAura rotation, movement-fix and consume checks are restored
+alongside the newer checks. Badlion nametags remain unsupported, and the review
+policy does not create public marks. The new HUD hook still needs live gameplay verification.
 Config: `.minecraft\config\rain.properties`.
 
 Temporal Analysis keeps a bounded four-second player history. Edge-crouch and

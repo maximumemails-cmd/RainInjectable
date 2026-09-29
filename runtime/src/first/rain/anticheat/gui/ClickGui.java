@@ -4,6 +4,7 @@ import first.rain.anticheat.Rain;
 import first.rain.anticheat.RainCore;
 import first.rain.anticheat.config.cfg;
 import first.rain.anticheat.util.RenderUtil;
+import first.rain.anticheat.util.anticheat.FlashEffect;
 import java.util.ArrayList;
 import java.util.List;
 import java.io.File;
@@ -44,18 +45,22 @@ public class ClickGui extends GuiScreen {
    private int dragOffsetY;
    private long lastFrameMillis;
    private float tabAnim;
+   private boolean showingInfo;
+   private int infoPage;
 
    public ClickGui() {
       this.alertCards.add(new ModuleCard("Rain (master)", "Enable or disable all detection and alerts.",
          () -> RainCore.isEnabled(), (v) -> RainCore.setEnabled(v, true), CARD_W, CARD_H));
-      this.alertCards.add(new ModuleCard("Block overlap", "Repeated swing and block-use overlap; review only.",
+      this.alertCards.add(new ModuleCard("AutoBlock", "Repeated swing and block-use overlap; review only.",
          () -> cfg.v.detectAutoBlock, (v) -> cfg.v.detectAutoBlock = v, CARD_W, CARD_H));
-      this.alertCards.add(new ModuleCard("Bridge rhythm", "Regular crouches while bridging; review only.",
+      this.alertCards.add(new ModuleCard("Legit Scaffold", "Regular crouches while bridging; review only.",
          () -> cfg.v.detectLegitScaffold, (v) -> cfg.v.detectLegitScaffold = v, CARD_W, CARD_H));
-      this.alertCards.add(new ModuleCard("Aim pattern", "Hurt-correlated aim presentation; review only.",
+      this.alertCards.add(new ModuleCard("KillAura", "Aim, movement-fix and consume patterns.",
          () -> cfg.v.detectKillaura, (v) -> cfg.v.detectKillaura = v, CARD_W, CARD_H));
       this.alertCards.add(new ModuleCard("Temporal Analysis", "Four seconds of bounded player history.",
          () -> cfg.v.temporalAnalysis, (v) -> cfg.v.temporalAnalysis = v, CARD_W, CARD_H));
+      this.alertCards.add(new ModuleCard("Reach Review", "Repeated excess-distance combat candidates.",
+         () -> cfg.v.reviewGrossReach, (v) -> cfg.v.reviewGrossReach = v, CARD_W, CARD_H));
 
       this.flashCard = new FlashSettingsCard(CARD_W * 2 + GAP, FLASH_CARD_HEIGHT);
       this.nametagCard = new NametagSettingsCard(CARD_W * 3 + GAP * 2, NAMETAG_CARD_HEIGHT);
@@ -109,8 +114,23 @@ public class ClickGui extends GuiScreen {
       int statusColor = RainCore.isEnabled() ? 0xFF32D74B : 0xFFFF3B30;
       this.field_146289_q.func_175063_a(RainCore.isEnabled() ? "ON" : "OFF",
          (float)(panelX + PADDING + this.field_146289_q.func_78256_a("Rain ")), (float)titleTextY, statusColor);
-      String hint = "drag";
-      this.field_146289_q.func_78276_b(hint, panelX + this.panelWidth - PADDING - this.field_146289_q.func_78256_a(hint), titleTextY, 0xFF5A5A5A);
+      int infoX = panelX + this.panelWidth - PADDING - 14;
+      boolean infoHover = this.isOverInfo(mouseX, mouseY);
+      RenderUtil.drawRoundedRect(infoX, panelY + 3, 14, 14, 7,
+         infoHover || showingInfo ? 0xFF353535 : 0xFF1D1D1D);
+      RenderUtil.drawRoundedOutline(infoX, panelY + 3, 14, 14, 7, 1,
+         infoHover || showingInfo ? 0xC8FFFFFF : 0x60FFFFFF);
+      // Draw a crisp information glyph independently of the font's Unicode coverage.
+      Gui.func_73734_a(infoX + 6, panelY + 6, infoX + 8, panelY + 8, 0xFFE6E6E6);
+      Gui.func_73734_a(infoX + 6, panelY + 10, infoX + 8, panelY + 14, 0xFFE6E6E6);
+
+      if (showingInfo) {
+         this.drawInfo(mouseX, mouseY);
+         GL11.glPopMatrix();
+         super.func_73863_a(screenMouseX, screenMouseY, partialTicks);
+         FlashEffect.render();
+         return;
+      }
 
       this.drawTabs(mouseX, mouseY);
 
@@ -150,6 +170,40 @@ public class ClickGui extends GuiScreen {
 
       GL11.glPopMatrix();
       super.func_73863_a(screenMouseX, screenMouseY, partialTicks);
+      FlashEffect.render();
+   }
+
+   private boolean isOverInfo(int x, int y) {
+      return x >= panelX + panelWidth - PADDING - 17 && x < panelX + panelWidth - PADDING + 3
+         && y >= panelY && y < panelY + TITLE_BAR_HEIGHT;
+   }
+
+   private void drawInfo(int mouseX, int mouseY) {
+      int x = panelX + PADDING, y = panelY + TITLE_BAR_HEIGHT + 8;
+      this.field_146289_q.func_78276_b("Module guide", x, y, 0xFFFFFFFF);
+      String page = (infoPage + 1) + " / " + ModuleGuide.TITLES.length;
+      this.field_146289_q.func_78276_b(page, panelX + panelWidth - PADDING
+         - this.field_146289_q.func_78256_a(page), y, 0xFF8C8C8C);
+      y += 18;
+      RenderUtil.drawRoundedRect(x, y, panelWidth - PADDING * 2, 124, 5, 0xFF131313);
+      RenderUtil.drawRoundedOutline(x, y, panelWidth - PADDING * 2, 124, 5, 1, 0x32FFFFFF);
+      this.field_146289_q.func_78276_b(ModuleGuide.TITLES[infoPage], x + 10, y + 9, 0xFFFFFFFF);
+      int lineY = y + 26;
+      for (String paragraph : ModuleGuide.DETAILS[infoPage]) {
+         for (String line : this.field_146289_q.func_78271_c(paragraph, panelWidth - PADDING * 2 - 20)) {
+            this.field_146289_q.func_78276_b(line, x + 10, lineY, 0xFFAAAAAA);
+            lineY += 10;
+         }
+         lineY += 5;
+      }
+      String[] labels = {"< Previous", "Back to settings", "Next >"};
+      for (int i = 0; i < 3; i++) {
+         int bx = x + i * (CARD_W + GAP), by = panelY + panelHeight - 27;
+         boolean hover = mouseX >= bx && mouseX < bx + CARD_W && mouseY >= by && mouseY < by + 18;
+         RenderUtil.drawRoundedRect(bx, by, CARD_W, 18, 5, hover ? 0xFF353535 : 0xFF1D1D1D);
+         this.field_146289_q.func_78276_b(labels[i], bx + (CARD_W
+            - this.field_146289_q.func_78256_a(labels[i])) / 2, by + 5, hover ? 0xFFFFFFFF : 0xFFAAAAAA);
+      }
    }
 
    private void drawTabs(int mouseX, int mouseY) {
@@ -216,6 +270,13 @@ public class ClickGui extends GuiScreen {
       if (mouseButton != 0) {
          return;
       }
+      if (this.isOverInfo(mouseX, mouseY)) {
+         showingInfo = !showingInfo;
+         dragging = false;
+         flashCard.mouseReleased();
+         nametagCard.mouseReleased();
+         return;
+      }
       if (mouseX >= panelX && mouseX < panelX + this.panelWidth && mouseY >= panelY && mouseY < panelY + TITLE_BAR_HEIGHT) {
          this.dragging = true;
          this.dragOffsetX = mouseX - panelX;
@@ -223,6 +284,19 @@ public class ClickGui extends GuiScreen {
          return;
       }
 
+      if (showingInfo) {
+         int by = panelY + panelHeight - 27;
+         if (mouseY >= by && mouseY < by + 18) {
+            for (int i = 0; i < 3; i++) {
+               int bx = panelX + PADDING + i * (CARD_W + GAP);
+               if (mouseX < bx || mouseX >= bx + CARD_W) continue;
+               if (i == 1) showingInfo = false;
+               else infoPage = (infoPage + (i == 0 ? -1 : 1) + ModuleGuide.TITLES.length) % ModuleGuide.TITLES.length;
+               break;
+            }
+         }
+         return;
+      }
       int[] tabs = this.tabLayout();
       if (this.isOverTab(mouseX, mouseY, tabs[0], tabs[1])) {
          this.setTab(TAB_ALERTS);
@@ -272,6 +346,7 @@ public class ClickGui extends GuiScreen {
       super.func_146273_a(mouseX, mouseY, clickedMouseButton, timeSinceLastClick);
       mouseX = this.logicalMouseX(mouseX);
       mouseY = this.logicalMouseY(mouseY);
+      if (showingInfo) return;
       if (activeTab == TAB_NOTIFICATIONS) {
          this.flashCard.mouseDragged(mouseX, mouseY);
       } else if (activeTab == TAB_NAMETAGS) {
@@ -289,6 +364,10 @@ public class ClickGui extends GuiScreen {
 
    @Override
    protected void func_73869_a(char typedChar, int keyCode) {
+      if (showingInfo && keyCode == 1) {
+         showingInfo = false;
+         return;
+      }
       if (keyCode != 0 && keyCode == ClickGuiKeybind.OPEN_GUI.func_151463_i()) {
          this.field_146297_k.func_147108_a((GuiScreen)null);
          return;

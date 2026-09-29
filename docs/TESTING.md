@@ -8,6 +8,7 @@ ctest --test-dir build/native -C Release --output-on-failure
 build/native/Release/target_diagnostics.exe
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-bootstrap.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-detectors.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\test-flash-hud.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\check-detector-static.ps1
 powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1
 git diff --check
@@ -72,8 +73,10 @@ writes SHA-256 hashes to the local release folder.
   Java bootstrap's definitive Forge check. They have not been live-injected.
 - Forge event delivery and visual desktop rendering of the injector remain
   unverified. Badlion's GUI key opened the screen in the live JVM, and the
-  master control changed and persisted across a close and reopen. Flash and
-  Nametag overlays are not part of the Badlion adapter yet. The review policy
+  master control changed and persisted across a close and reopen. Flash now has
+  a Badlion HUD adapter, covered by a synthetic delegation harness; its visible
+  gameplay rendering has not been live-tested. Nametag overlays are not part of
+  the Badlion adapter yet. The review policy
   does not send unvalidated evidence into a public red marker.
 - After a partial bootstrap failure, restart Minecraft before retrying; an
   already-loaded native DLL will not rerun its process-attach entry point.
@@ -81,3 +84,27 @@ writes SHA-256 hashes to the local release folder.
   the Java result. Native DLL presence alone does not mean Rain initialized.
 - The UI does not offer DLL ejection: Rain's Java event registrations would
   remain active after unloading its native bootstrap DLL.
+
+## Detection restoration and notification regression checks
+
+Compared with the initial vendored Rain commit `35939a4`, the three original
+modules (AutoBlock, Legit Scaffold, KillAura) remain. KillAura's rotation-window
+heuristics, snap oscillation, movement-fix/lock/sprint and consume subchecks had
+been removed; these are restored through `LegacyCombatEvidence`, retaining
+current combat attribution, observation quality gates and review-only alerts.
+Existing snap/return/track checks and the newer reach/temporal checks remain.
+
+The restoration harness covers normal and suspicious rotation, movement and
+consume traces, interrupted windows, reset, flash color/opacity, pulse timing,
+expiry, disabled alerts and preview while disabled. The HUD harness exercises
+the constructor callback, every public GuiIngame API delegation, original
+chat/tab/font/spectator identity, vignette state, replacement HUDs and avoiding
+double flashes while Rain settings are open. It uses fakes, not a running game.
+The layout harness checks all six module cards and conservative text wrapping
+for every guide page at the existing supported viewport sizes.
+
+Live follow-up: restart Minecraft before loading the rebuilt runtime; test
+flash at nonzero opacity both with the notification toggle on and off, then
+verify an emitted review alert flashes with the toggle on. Verify gameplay
+input, client HUD/chat/tab/title overlays, guide paging, Escape/back, title-bar
+dragging and small GUI scales on both Forge and Badlion.

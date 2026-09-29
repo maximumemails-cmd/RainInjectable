@@ -8,13 +8,21 @@ import java.util.Set;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.entity.player.EntityPlayer;
+import net.minecraft.block.Block;
+import net.minecraft.init.Blocks;
+import net.minecraft.item.Item;
+import net.minecraft.item.ItemFood;
+import net.minecraft.item.ItemPotion;
+import net.minecraft.item.ItemBucketMilk;
+import net.minecraft.item.ItemStack;
+import net.minecraft.util.BlockPos;
 import first.rain.anticheat.Rain;
 import first.rain.anticheat.config.cfg;
 import first.rain.anticheat.util.anticheat.AlertManager;
 import first.rain.anticheat.util.anticheat.PlayerEligibility;
 
-/** Remote aim evidence is evaluated only during hurt-correlated combat.
- * Repeated target-aware snap and tracking signals must both contribute. */
+/** Remote aim evidence during hurt-correlated combat, including the original
+ * rotation, movement-fix and consume components alongside snap/track analysis. */
 public class KillauraCheck {
    /** Keep recent target hurt observations in one short fight window. */
    private static final long COMBAT_WINDOW_TICKS = 20L;
@@ -58,6 +66,8 @@ public class KillauraCheck {
    private static final class State {
       // rotation stream
       float lastYaw;
+      float lastPitch;
+      final LegacyCombatEvidence legacy = new LegacyCombatEvidence();
       boolean hasRotation;
       // combat gate
       long lastSwingTick = Long.MIN_VALUE;
@@ -114,7 +124,7 @@ public class KillauraCheck {
    }
 
    public void anticheatCheck(EntityPlayer player) {
-      if (!cfg.v.detectKillaura) {
+      if (!cfg.v.detectKillaura && !cfg.v.detectAutoBlock) {
          reset();
          return;
       }
@@ -167,23 +177,41 @@ public class KillauraCheck {
          targets.clear();
       }
 
+      // AutoBlock needs combat attribution even with KillAura's own analysis off.
+      if (!cfg.v.detectKillaura) {
+         st.legacy.reset();
+         st.evidence.reset();
+         st.hasRotation = false;
+         this.resetBurst(st);
+         st.quietTicks = st.snapHits = st.snapMisses = st.trackSamples = st.trackTicks = 0;
+         st.lastTargetId = null;
+         st.lastBearing = Float.NaN;
+         st.lastSnapHitTick = Long.MIN_VALUE;
+         return;
+      }
       float yaw = player.field_70177_z;
       if (!st.hasRotation) {
          st.lastYaw = yaw;
+         st.lastPitch = player.field_70125_A;
          st.hasRotation = true;
          return;
       }
       float prevYaw = st.lastYaw;
       float yawChange = wrapDegrees(yaw - st.lastYaw);
+      float pitchChange = wrapDegrees(player.field_70125_A - st.lastPitch);
+      st.lastPitch = player.field_70125_A;
       st.lastYaw = yaw;
 
       // Teleport/lag guard: a large position step also snaps observed rotation,
       // which would poison every rotation component with a false "snap".
       double moveX = player.field_70165_t - player.field_70142_S;
       double moveZ = player.field_70161_v - player.field_70136_U;
-      if (moveX * moveX + moveZ * moveZ > 25.0D) {         this.resetBurst(st);
+      if (moveX * moveX + moveZ * moveZ > 25.0D) {
+         st.legacy.reset();
+         this.resetBurst(st);
          st.lastBearing = Float.NaN;
-         st.lastTargetId = null;         return;
+         st.lastTargetId = null;
+         return;
       }
 
       // Rotations outside a hurt-correlated fight cannot add aim evidence.
@@ -194,10 +222,13 @@ public class KillauraCheck {
             st.evidence.reset();
          }
          st.evidence.tick(false);
+         st.legacy.breakObservation();
+         st.legacy.tick();
          return;
       }
 
       // geometry components share one candidate scan per tick
+      this.legacyComponents(mc, player, st, tick, yawChange, pitchChange, moveX, moveZ, targets);
       this.burstMachine(player, st, tick, yawChange, prevYaw, targets);
       this.trackComponent(player, st, yaw, targets);
       if (st.evidence.shouldAlert()) {
@@ -219,6 +250,37 @@ public class KillauraCheck {
          st.trackTicks = 0;
       }
       st.evidence.tick(true);
+   }
+
+   private void legacyComponents(Minecraft mc, EntityPlayer player, State st, long tick,
+      float yawChange, float pitchChange, double moveX, double moveZ, List<EntityPlayer> targets) {
+      st.legacy.rotation(yawChange, pitchChange);
+      ObservationEngine.Sample sample = Rain.ANTICHEAT.observations.latest(player.func_110124_au());
+      Block ground = mc.field_71441_e.func_180495_p(new BlockPos(player.field_70165_t,
+         player.field_70163_u - 0.5D, player.field_70161_v)).func_177230_c();
+      boolean usableGround = player.field_70122_E && sample != null && !sample.uncertainEnvironment
+         && ground != Blocks.field_150432_aD && ground != Blocks.field_150403_cj;
+      boolean targetLocked = false;
+      for (EntityPlayer target : targets) {
+         if (target.func_110124_au().equals(st.combatTarget) && player.func_70685_l(target)
+            && minAimError(player, target, trail(target.func_110124_au()),
+               player.field_70177_z, player.field_70125_A) <= QUANTUM) targetLocked = true;
+      }
+      st.legacy.movement(moveX, player.field_70163_u - player.field_70137_T, moveZ,
+         player.field_70177_z, usableGround, player.func_70051_ag(), targetLocked);
+      ItemStack held = player.func_70694_bm();
+      Item item = held == null ? null : held.func_77973_b();
+      boolean consumable = item instanceof ItemFood || item instanceof ItemPotion || item instanceof ItemBucketMilk;
+      if (st.legacy.consume(tick, player.func_71039_bw() && consumable, player.field_110158_av > 0)) {
+         AlertManager.recordLegacy(player, AlertManager.CheckType.KILLAURA, 8,
+            "consume: repeated attack/use overlap", 0.35D);
+      }
+      if (st.legacy.shouldReview()) {
+         AlertManager.recordLegacy(player, AlertManager.CheckType.KILLAURA,
+            (int)(st.legacy.score() / 10), "restored components: " + st.legacy.reasons(), 0.4D);
+         st.legacy.afterReview();
+      }
+      st.legacy.tick();
    }
 
    /** A swing is only a candidate attack. A fresh hurt animation on a nearby,
@@ -500,6 +562,7 @@ public class KillauraCheck {
    }
 
    private void resetSession(State st) {
+      st.legacy.reset();
       this.resetBurst(st);
       st.quietTicks = 0;
       st.snapHits = 0;

@@ -2,6 +2,11 @@
 
 ## Detection upgrade
 
+- Restored original KillAura rotation-window, snap-pattern, movement-fix/lock/sprint and consume checks with current observation safeguards.
+- Fixed Screen Flash alert triggering and the Test preview; added Badlion HUD rendering with original HUD delegation.
+- Replaced the title-bar drag hint with a styled information icon and a paged module guide; title-bar dragging remains available.
+- Restored original detector names in settings and exposed the existing Reach Review switch.
+
 - Added a selectable four-second Temporal Analysis mode with bounded player histories.
 - Added a conservative AutoCrouch/Eagle edge-pattern review signal requiring repeated sneak transitions at distinct supported block edges.
 - Tightened aim and block-use context with competing-swing attribution, separated hurt episodes, and a small supporting player turn baseline.
@@ -13,7 +18,7 @@ See `RAIN_DETECTION_UPGRADE_REPORT.md` for the implementation, tests, performanc
 
 ## Distribution
 
-The single-file `RainInjectable.exe` embeds the native payload and both Java runtimes. The ZIP includes the executable, README, GPL-3.0 license, license notes, credits, release notes, and both detection audits. It contains no development cache or private configuration. The corresponding source is the `v1.3.0-injectable` tag.
+The single-file `RainInjectable.exe` embeds the native payload and both Java runtimes. The ZIP includes the executable, README, GPL-3.0 license, license notes, credits, release notes, and both detection audits. It contains no development cache or private configuration. This local rebuild includes working-tree changes after the `v1.3.0-injectable` tag.
 
 ## Validation and limits
 

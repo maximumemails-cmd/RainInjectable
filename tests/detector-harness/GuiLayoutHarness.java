@@ -1,4 +1,5 @@
 import first.rain.anticheat.gui.ClickGuiLayout;
+import first.rain.anticheat.gui.ModuleGuide;
 
 public final class GuiLayoutHarness {
    private static int assertions;
@@ -15,7 +16,7 @@ public final class GuiLayoutHarness {
       int contentY = panelY + 48;
       check(panelX >= 0 && panelY >= 0 && (panelX + panelW) * scale <= width
          && (panelY + panelH) * scale <= height, "panel fits viewport");
-      for (int i = 0; i < 5; i++) {
+      for (int i = 0; i < 6; i++) {
          int x = ClickGuiLayout.cardX(panelX, i, pad, cardW, gap);
          int y = ClickGuiLayout.cardY(contentY, i, cardH, gap);
          check(x >= panelX + pad && x + cardW <= panelX + panelW - pad
@@ -41,6 +42,20 @@ public final class GuiLayoutHarness {
          "debug card does not cover export");
    }
    public static void main(String[] args) {
+      check(ModuleGuide.TITLES.length == ModuleGuide.DETAILS.length, "all guide titles have content");
+      for (String[] page : ModuleGuide.DETAILS) {
+         int height = 26;
+         for (String paragraph : page) {
+            int columns = 0, lines = 1;
+            // Six pixels per glyph is a conservative bound for this ASCII text.
+            for (String word : paragraph.split(" ")) {
+               if (columns > 0 && columns + 1 + word.length() > 59) { lines++; columns = 0; }
+               columns += (columns == 0 ? 0 : 1) + word.length();
+            }
+            height += lines * 10 + 5;
+         }
+         check(height <= 124, "guide text fits its card without clipping");
+      }
       screen(320, 240); screen(400, 300); screen(854, 480); screen(1920, 1080);
       screen(256, 160); // constrained scaled GUI
       System.out.println("GUI LAYOUT HARNESS OK: " + assertions + " assertions");

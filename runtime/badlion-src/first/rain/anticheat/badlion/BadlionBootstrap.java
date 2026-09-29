@@ -50,6 +50,7 @@ public final class BadlionBootstrap {
       Future<?> init = (Future<?>)schedule.invoke(game, new Runnable() {
          @Override public void run() {
             RainCore.start();
+            FlashHud.install(game);
             // Resolve every GUI dependency before native injection reports success.
             new ClickGui();
             guiReady = true;
@@ -69,6 +70,7 @@ public final class BadlionBootstrap {
                         @Override public void run() {
                            try {
                               Rain.tick();
+                              FlashHud.install(game);
                               pollKeys(game);
                               heartbeats++;
                            }

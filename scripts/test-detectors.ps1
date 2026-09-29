@@ -14,11 +14,15 @@ $checks = Join-Path $root 'runtime\src\first\rain\anticheat\util\anticheat\check
 & $javac -source 1.8 -target 1.8 -Xlint:-options -d $out `
     (Join-Path $checks 'EpisodeEvidence.java') (Join-Path $checks 'AimEvidence.java') `
     (Join-Path $checks 'AimGeometry.java') `
+    (Join-Path $checks 'LegacyCombatEvidence.java') `
+    (Join-Path $root 'runtime\src\first\rain\anticheat\util\anticheat\FlashPulse.java') `
     (Join-Path $checks 'AutoBlockEvidence.java') (Join-Path $checks 'ScaffoldEvidence.java') `
     (Join-Path $checks 'ObservationEngine.java') (Join-Path $checks 'TemporalAnalysis.java') (Join-Path $checks 'EvidenceLedger.java') `
     (Join-Path $checks 'EvidenceExporter.java') `
     (Join-Path $root 'runtime\src\first\rain\anticheat\gui\ClickGuiLayout.java') `
+    (Join-Path $root 'runtime\src\first\rain\anticheat\gui\ModuleGuide.java') `
     (Join-Path $root 'tests\detector-harness\Harness.java') `
+    (Join-Path $root 'tests\detector-harness\RestorationHarness.java') `
     (Join-Path $root 'tests\detector-harness\ObservationHarness.java') `
     (Join-Path $root 'tests\detector-harness\EvidenceHarness.java') `
     (Join-Path $root 'tests\detector-harness\TemporalHarness.java') `
@@ -26,6 +30,8 @@ $checks = Join-Path $root 'runtime\src\first\rain\anticheat\util\anticheat\check
 if ($LASTEXITCODE -ne 0) { throw 'detector harness compilation failed' }
 & $java -cp $out Harness
 if ($LASTEXITCODE -ne 0) { throw 'detector harness failed' }
+& $java -cp $out RestorationHarness
+if ($LASTEXITCODE -ne 0) { throw 'restoration harness failed' }
 & $java -cp $out ObservationHarness
 if ($LASTEXITCODE -ne 0) { throw 'observation harness failed' }
 & $java -cp $out EvidenceHarness
