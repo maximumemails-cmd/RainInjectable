@@ -16,7 +16,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $dist = Join-Path $root $DistName
 $nativeBuild = Join-Path (Join-Path $root 'build') $NativeBuildName
-$releaseDir = Join-Path $root 'releases\1.3.0-injectable'
+$releaseDir = Join-Path $root 'releases\1.3.1-injectable'
 
 function Find-Jdk8 {
     if ($env:RAIN_JDK8 -and (Test-Path (Join-Path $env:RAIN_JDK8 'bin\javac.exe'))) { return $env:RAIN_JDK8 }

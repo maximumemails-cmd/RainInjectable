@@ -30,7 +30,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\verify-release.ps1
 Requires JDK 8, CMake, VS 2022 Build Tools (MSVC x64). The Badlion build
 downloads pinned Minecraft 1.8.9 mappings and SpecialSource into ignored
 `runtime/libs/`. The single-file
-build is `releases/1.3.0-injectable/RainInjectable.exe`, with a ZIP bundle beside it. The DLL and
+build is `releases/1.3.1-injectable/RainInjectable.exe`, with a ZIP bundle beside it. The DLL and
 both JARs are embedded in the EXE; separate build artifacts in `dist/` are for
 inspection and testing.
 

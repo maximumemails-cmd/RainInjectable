@@ -22,7 +22,7 @@ import first.rain.anticheat.util.anticheat.PlayerEligibility;
 @Mod(modid = Rain.MODID, name = "Rain", version = Rain.VERSION)
 public class Rain {
    public static final String MODID = "rain";
-   public static final String VERSION = "1.3.0-injectable";
+   public static final String VERSION = "1.3.1-injectable";
 
    public static final AntiCheatData ANTICHEAT = new AntiCheatData();
    private net.minecraft.world.World lastWorld;
